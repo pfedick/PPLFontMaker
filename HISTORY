@@ -1,0 +1,33 @@
+History Font5Maker
+==================
+
+Version 1.4.0 vom 04.02.2012    (SVN-Tag: REL_1_4_0)
+  - Programm umbenannt in pplfontmaker
+  - Import aller bisherigen CVS-Versionen ins SVN
+  - Code refakturiert und modularisiert, so dass Version 5 und Version 6
+    Fonts mit dem gleichen Basiscode unterstützt werden
+  - Generator für Version 6-Fonts hinzugefügt
+
+Version 1.3.1 vom 21.02.2010    (SVN-Tag: REL_1_3_1)
+  - "--genbold" kann nicht mehr zusammen mit "--aa2", "--aa4"
+    oder "--mono" verwendet werden.
+  
+Version 1.3.0 vom 02.01.2010    (SVN-Tag: REL_1_3_0)
+  - Update auf PPL 6.4.x
+  - Unterstützung von 4-Bit Antialiasing
+  - Default-Zeichensatz wurde um das Grosse SZ ergänzt
+  - Option zur Einbindung von IDN-Zeichen
+
+Version 1.2.0 vom 09.12.2009    (SVN-Tag: REL_1_2_0)
+  - Update auf PPL 6.3.2
+
+Version 1.1.0 vom 25.11.2007    (SVN-Tag: REL_1_1_0)
+  - Font5-Format wurde überarbeitet und sieht nun eine variable Anzahl von
+    Sprungtabellen vor, sowie die Parameter MaxBearingY, MaxHeight und
+    Position Underscore.
+  - Parameter "-c" nimmt nun eine kommagetrennte Liste von Unicode-
+    Bereichen an. Jeder Bereich wird in einer eigenen Sprungtabelle
+    abgebildet. Der Default ist nun 32-255 plus 8364 (Euro-Symbol).
+
+Version 1.0.0 vom 12.11.2007    (SVN-Tag: REL_1_0_0)
+  - Erstrelease
