@@ -52,7 +52,7 @@ clean:
 	-rm -f compile/*.o $(PROGRAM) *.core
 
 cleanall:
-	-rm -f compile/*.o $(PROGRAM) texmaker mergeintro fixbricks *.core vplay flashlighttracking nightbackground
+	-rm -f compile/*.o $(PROGRAM) *.core
 	cd pplib && $(MAKE) clean
 
 update_version:
