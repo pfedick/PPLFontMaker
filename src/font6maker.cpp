@@ -252,7 +252,7 @@ void CFont6Generator::List(bool withGlyphs)
     if ((tmp = getAuthor()).notEmpty()) printf("Author:      %s\n", (const char*)tmp);
     if ((tmp = getCopyright()).notEmpty()) printf("Copyright:   %s\n", (const char*)tmp);
     if ((tmp = getDescription()).notEmpty()) printf("Description: %s\n", (const char*)tmp);
-
+    // if ((tmp = getName()).notEmpty()) printf("Size:        %llu Bytes\n", (const char*)tmp);
     ppl7::PFPFile::Iterator it;
     reset(it);
     PFPChunk* c;

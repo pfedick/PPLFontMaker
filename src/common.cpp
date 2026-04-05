@@ -79,7 +79,7 @@ int CFontGeneratorCommon::Render(int code, FONTRENDER* render)
 
     render->buffer = (char*)malloc(render->buffersize);
     if (!render->buffer) {
-        printf("ERROR: Fehler beim Reservieren von %zi Bytes Speicher\n", render->buffersize);
+        printf("ERROR: Fehler beim Reservieren von %d Bytes Speicher\n", render->buffersize);
         return 0;
     }
     memset(render->buffer, 0, render->buffersize);

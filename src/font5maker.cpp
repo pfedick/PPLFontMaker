@@ -9,46 +9,59 @@ Font5Glyph::Font5Glyph()
     unicode = 0;
 }
 
+Font5Glyph::Font5Glyph(const Font5Glyph& other)
+{
+    unicode = other.unicode;
+    memcpy(header, other.header, 10);
+    bitmap = NULL;
+    size = other.size;
+    if (other.bitmap) {
+        bitmap = (char*)malloc(size);
+        if (!bitmap) throw ppl7::OutOfMemoryException();
+        memcpy(bitmap, other.bitmap, size);
+    }
+}
+
 Font5Glyph::~Font5Glyph()
 {
     if (bitmap) free(bitmap);
 }
 
-int Font5Glyph::CompareNode(CTreeItem* item)
+Font5Glyph& Font5Glyph::operator=(const Font5Glyph& other)
 {
-    Font5Glyph* g = (Font5Glyph*)item;
-    if (g->unicode < unicode) return -1;
-    if (g->unicode > unicode) return 1;
-    return 0;
-}
-
-int Font5Glyph::CompareValue(void* value)
-{
-    int* g = (int*)value;
-    if (*g < unicode) return -1;
-    if (*g > unicode) return 1;
-    return 0;
+    if (bitmap) free(bitmap);
+    unicode = other.unicode;
+    memcpy(header, other.header, 10);
+    bitmap = NULL;
+    size = other.size;
+    if (other.bitmap) {
+        bitmap = (char*)malloc(size);
+        if (!bitmap) throw ppl7::OutOfMemoryException();
+        memcpy(bitmap, other.bitmap, size);
+    }
+    return *this;
 }
 
 CFont5Generator::CFont5Generator()
 {
-    SetVersion(5, 0);
+    setVersion(5, 0);
     fontchunk = new PFPChunk;
-    fontchunk->SetName("FONT");
-    AddChunk(fontchunk);
+    fontchunk->setName("FONT");
+    addChunk(fontchunk);
 }
 
 CFont5Generator::~CFont5Generator()
 {
-    Glyphs.Clear(true);
+    Glyphs.clear();
 }
 
 int CFont5Generator::AddCharRange(wchar_t start, wchar_t end)
 {
     // Zuerst prüfen, ob es die Range schon gibt
-    CharRanges.Reset();
+    ppl7::AssocArray::Iterator it;
+    CharRanges.reset(it);
     ppl6::CAssocArray* r;
-    while ((r = CharRanges.GetNextArray())) {
+    while ((r = CharRanges.getNextArray())) {
         wchar_t s = (wchar_t)ppl6::atoi(r->Get("start"));
         wchar_t e = (wchar_t)ppl6::atoi(r->Get("end"));
         if (start >= s && start <= e) return 0;
@@ -70,21 +83,16 @@ int CFont5Generator::AddChar(wchar_t unicode)
 
 int CFont5Generator::AddGlyph(wchar_t code, FONTRENDER* render)
 {
-    Font5Glyph* g = new Font5Glyph;
-    g->unicode = code;
-    poke16(g->header + 0, render->width);
-    poke16(g->header + 2, render->height);
-    poke16(g->header + 4, render->bearingx);
-    poke16(g->header + 6, render->bearingy);
-    poke16(g->header + 8, render->advance);
-    g->bitmap = render->buffer;
-    g->size = render->buffersize + 10;
-    if (!Glyphs.Add(g)) {
-        PushError();
-        delete g;
-        PopError();
-        return 0;
-    }
+    Font5Glyph g;
+    g.unicode = code;
+    Poke16(g.header + 0, render->width);
+    Poke16(g.header + 2, render->height);
+    Poke16(g.header + 4, render->bearingx);
+    Poke16(g.header + 6, render->bearingy);
+    Poke16(g.header + 8, render->advance);
+    g.bitmap = render->buffer;
+    g.size = render->buffersize + 10;
+    Glyphs.insert(std::pair<wchar_t, Font5Glyph>(code, g));
     return 1;
 }
 
@@ -103,7 +111,7 @@ int CFont5Generator::Generate(int fontsize, int flags)
     int maxheight = 0;
     int maxunderlength = -9999999;
     int maxbearingy = 0;
-    int start, end;
+    wchar_t start, end;
     int numJumpTables = 0;
     int numGlyphs = 0;
     CharRanges.Reset();
@@ -133,7 +141,7 @@ int CFont5Generator::Generate(int fontsize, int flags)
 
     char* buffer = (char*)malloc(bytes);
     if (!buffer) {
-        SetError(2);
+        printf("ERROR: Fehler beim Reservieren von %d Bytes Speicher\n", bytes);
         return 0;
     }
     memset(buffer, 0, bytes);
@@ -143,22 +151,22 @@ int CFont5Generator::Generate(int fontsize, int flags)
     if (flags & FONTFLAGS::ISBOLD) f |= 2;
     if (flags & FONTFLAGS::GENERATEBOLD) f |= 2;
     if (flags & FONTFLAGS::ISITALIC) f |= 4;
-    poke8(buffer + 0, f);
+    Poke8(buffer + 0, f);
     if (flags & FONTFLAGS::AA2)
-        poke8(buffer + 1, 4);
+        Poke8(buffer + 1, 4);
     else if (flags & FONTFLAGS::AA4)
-        poke8(buffer + 1, 5);
+        Poke8(buffer + 1, 5);
     else if (flags & FONTFLAGS::ANTIALIAS)
-        poke8(buffer + 1, 3);
+        Poke8(buffer + 1, 3);
     else if (flags & FONTFLAGS::MONO1)
-        poke8(buffer + 1, 2);
+        Poke8(buffer + 1, 2);
     else
-        poke8(buffer + 1, 1);
-    poke16(buffer + 2, fontsize);
-    poke16(buffer + 4, maxbearingy);
-    poke16(buffer + 6, maxheight);
-    poke16(buffer + 8, (0 - face->underline_position) >> 6);
-    poke16(buffer + 10, numJumpTables);
+        Poke8(buffer + 1, 1);
+    Poke16(buffer + 2, fontsize);
+    Poke16(buffer + 4, maxbearingy);
+    Poke16(buffer + 6, maxheight);
+    Poke16(buffer + 8, (0 - face->underline_position) >> 6);
+    Poke16(buffer + 10, numJumpTables);
     // Nun bauen wir die Sprungtabelle und die Glyphs zusammen
     char* jumpindex = buffer + 12;
     char* jump = buffer + 12 + numJumpTables * 8;
@@ -169,14 +177,14 @@ int CFont5Generator::Generate(int fontsize, int flags)
     while ((r = CharRanges.GetNextArray())) {
         start = ppl6::atoi(r->Get("start"));
         end = ppl6::atoi(r->Get("end"));
-        poke16(jumpindex + 0, start);
-        poke16(jumpindex + 2, end);
-        poke32(jumpindex + 4, jump - buffer);
+        Poke16(jumpindex + 0, start);
+        Poke16(jumpindex + 2, end);
+        Poke32(jumpindex + 4, jump - buffer);
         jumpindex += 8;
         for (int i = start; i <= end; i++) {
-            g = (Font5Glyph*)Glyphs.Find(&i);
+            g = (Font5Glyph*)Glyphs.find(&i);
             if (g) {
-                poke32(jump, p);
+                Poke32(jump, p);
                 memcpy(b, g->header, 10);
                 memcpy(b + 10, g->bitmap, g->size - 10);
                 b += g->size;
@@ -187,10 +195,10 @@ int CFont5Generator::Generate(int fontsize, int flags)
     }
 
     PFPChunk* facechunk = new PFPChunk;
-    facechunk->SetName("FACE");
-    facechunk->SetData(buffer, bytes);
-    AddChunk(facechunk);
-    Glyphs.Clear(true);
+    facechunk->setName("FACE");
+    facechunk->setData(buffer, bytes);
+    addChunk(facechunk);
+    Glyphs.clear();
     free(buffer);
 
     return 1;
@@ -211,39 +219,40 @@ void CFont5Generator::List()
 void CFont5Generator::List(bool withGlyphs)
 {
     const char* comp = "unkomprimiert";
-    if (this->GetCompression() == 1) comp = "Zlib-Komprimierung";
-    if (this->GetCompression() == 2) comp = "Bzip2-Komprimierung";
-    printf("PFP-File Version 3, %s Version %i.%i, %s\n", GetID(), GetMainVersion(), GetSubVersion(), comp);
-    const char* tmp;
-    if ((tmp = GetName())) printf("Name:        %s\n", tmp);
-    if ((tmp = GetAuthor())) printf("Author:      %s\n", tmp);
-    if ((tmp = GetCopyright())) printf("Copyright:   %s\n", tmp);
-    if ((tmp = GetDescription())) printf("Description: %s\n", tmp);
+    if (this->getCompression() == 1) comp = "Zlib-Komprimierung";
+    if (this->getCompression() == 2) comp = "Bzip2-Komprimierung";
+    printf("PFP-File Version 3, %s Version %i.%i, %s\n", (const char*)getID(), getMainVersion(), getSubVersion(), comp);
+    ppl7::String tmp;
+    if ((tmp = getName()).notEmpty()) printf("Name:        %s\n", (const char*)tmp);
+    if ((tmp = getAuthor()).notEmpty()) printf("Author:      %s\n", (const char*)tmp);
+    if ((tmp = getCopyright()).notEmpty()) printf("Copyright:   %s\n", (const char*)tmp);
+    if ((tmp = getDescription()).notEmpty()) printf("Description: %s\n", (const char*)tmp);
 
-    Reset();
+    ppl7::PFPFile::Iterator it;
+    reset(it);
     PFPChunk* c;
     char* b;
     char* jumpindex;
     int flags;
     int pixelformat;
-    ppl6::CString s;
-    while ((c = (PFPChunk*)GetNext())) {
-        if (strcmp(c->Name(), "FACE") == 0) {
-            b = (char*)c->Data();
+    ppl7::String s;
+    while ((c = (PFPChunk*)getNext(it))) {
+        if (c->name() == "FACE") {
+            b = (char*)c->data();
             jumpindex = b + 12;
-            printf("FACE Fontsize: %i, Size: %i Byte, Chartable: ", peek16(b + 2), c->Size());
-            for (int i = 0; i < (int)peek16(b + 10); i++) {
+            printf("FACE Fontsize: %i, Size: %i Byte, Chartable: ", Peek16(b + 2), c->size());
+            for (int i = 0; i < (int)Peek16(b + 10); i++) {
                 if (i) printf(", ");
-                if (peek16(jumpindex) != peek16(jumpindex + 2))
-                    printf("%i-%i", peek16(jumpindex), peek16(jumpindex + 2));
+                if (Peek16(jumpindex) != Peek16(jumpindex + 2))
+                    printf("%i-%i", Peek16(jumpindex), Peek16(jumpindex + 2));
                 else
-                    printf("%i", peek16(jumpindex));
+                    printf("%i", Peek16(jumpindex));
                 jumpindex += 8;
             }
-            printf(", MaxBY: %i, MaxHeight: %i, Underscore: %i", peek16(b + 4), peek16(b + 6), peek16(b + 8));
-            flags = peek8(b);
-            pixelformat = peek8(b + 1);
-            s.Clear();
+            printf(", MaxBY: %i, MaxHeight: %i, Underscore: %i", Peek16(b + 4), Peek16(b + 6), Peek16(b + 8));
+            flags = Peek8(b);
+            pixelformat = Peek8(b + 1);
+            s.clear();
             if (flags & 1) {
                 s += "Antialiased, ";
                 if (pixelformat == 3) s += "8 Bit/Pixel, ";
@@ -256,8 +265,8 @@ void CFont5Generator::List(bool withGlyphs)
             }
             if (flags & 2) s += "Bold, ";
             if (flags & 4) s += "Italic, ";
-            s.Chop(2);
-            if (s.Len())
+            s.chop(2);
+            if (s.len())
                 printf(", Flags: %s\n", (const char*)s);
             else
                 printf(", Flags: keine\n");
@@ -268,29 +277,28 @@ void CFont5Generator::List(bool withGlyphs)
 
 void CFont5Generator::ListGlyphs(PFPChunk* c)
 {
-    char* header = (char*)c->Data();
+    char* header = (char*)c->data();
     char* jumpindex = header + 12;
     char* glyph;
-    CWString s;
-    for (int j = 0; j < (int)peek16(header + 10); j++) {
-        int start = peek16(jumpindex);
-        int end = peek16(jumpindex + 2);
-        char* jump = header + peek32(jumpindex + 4);
+    WideString s;
+    for (int j = 0; j < (int)Peek16(header + 10); j++) {
+        wchar_t start = Peek16(jumpindex);
+        wchar_t end = Peek16(jumpindex + 2);
+        char* jump = header + Peek32(jumpindex + 4);
         jumpindex += 8;
-        ppluint32 p;
-        for (int i = start; i <= end; i++) {
-            s.SetChar(i);
-
-            p = peek32(jump + (i - start) * 4);
+        uint32_t p;
+        for (wchar_t i = start; i <= end; i++) {
+            s.set(i);
+            p = Peek32(jump + (i - start) * 4);
             if (p) {
                 glyph = header + p;
-                pplint16 w = peek16(glyph + 0);
-                pplint16 h = peek16(glyph + 2);
-                pplint16 bx = peek16(glyph + 4);
-                pplint16 by = peek16(glyph + 6);
-                pplint16 ad = peek16(glyph + 8);
+                int16_t w = Peek16(glyph + 0);
+                int16_t h = Peek16(glyph + 2);
+                int16_t bx = Peek16(glyph + 4);
+                int16_t by = Peek16(glyph + 6);
+                int16_t ad = Peek16(glyph + 8);
                 printf("Char %5i: Size: %3i x %3i, Bearing x: %3i, y: %3i, Advance: %i   - ", i, w, h, bx, by, ad);
-                s.Print(true);
+                s.print(true);
             } else {
                 printf("Char %5i: nicht vorhanden\n", i);
             }

@@ -87,7 +87,9 @@ private:
 
 public:
     Font5Glyph();
-    virtual ~Font5Glyph();
+    Font5Glyph(const Font5Glyph& other);
+    ~Font5Glyph();
+    Font5Glyph& operator=(const Font5Glyph& other);
 };
 
 class CFontGeneratorCommon : public ppl7::PFPFile
@@ -119,14 +121,13 @@ public:
     virtual void ListGlyphs(PFPChunk* c) = 0;
 };
 
-/* TODO
 class CFont5Generator : public CFontGeneratorCommon
 {
 private:
     PFPChunk* fontchunk;
     int debugx, debugy;
-    ppl6::CAssocArray CharRanges;
-    std::map<wchar_t : Font5Glyph> Glyphs;
+    ppl7::AssocArray CharRanges;
+    std::map<wchar_t, Font5Glyph> Glyphs;
 
     int AddGlyph(wchar_t code, FONTRENDER* render);
 
@@ -142,7 +143,7 @@ public:
     virtual void List(bool withGlyphs);
     virtual void ListGlyphs(PFPChunk* c);
 };
-*/
+
 class Font6Glyph
 {
 public:

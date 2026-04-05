@@ -59,7 +59,7 @@ void Main::help()
            "              soll. Es können mehrere kommagetrennte Bereiche\n"
            "              angegeben werden. Default = 32-255,8364 (€-Symbol),\n"
            "              7838 (ẞ, grosses SZ)\n"
-           "  -5          PPL-Font Version 5 generieren\n"
+           //           "  -5          PPL-Font Version 5 generieren\n"
            "  -6          PPL-Font Version 6 generieren (=Default)\n"
            "Flags:\n"
            "  --aa        Antialiased Fonts erstellen\n"
@@ -377,13 +377,15 @@ int Main::start(int argc, char** argv)
 int Main::work(int argc, char** argv)
 {
     // Das Quellfile wird geladen, wenn es existiert
-    try {
-        font->load(target);
-    }
-    catch (const ppl7::Exception& e) {
-        printf("ERRROR: Zieldatei existiert, scheint aber keine Font-Datei zu sein\n");
-        e.print();
-        return 0;
+    if (ppl7::File::exists(target)) {
+        try {
+            font->load(target);
+        }
+        catch (const ppl7::Exception& e) {
+            printf("ERRROR: Zieldatei existiert, scheint aber keine Font-Datei zu sein\n");
+            e.print();
+            return 0;
+        }
     }
     try {
         if (ppl7::HaveArgv(argc, argv, "--name")) {
@@ -444,6 +446,8 @@ int Main::work(int argc, char** argv)
         e.print();
         return 0;
     }
+    ppl7::DirEntry stat = ppl7::File::statFile(target);
+    printf("Font-Datei \"%s\" erfolgreich gespeichert, Größe: %llu Bystes\n", (const char*)target, stat.Size);
     font->List();
     return 1;
 }
