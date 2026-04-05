@@ -1,0 +1,83 @@
+VERSION ?= 1.5.0
+PREVIOUS_TAG = 1.4.0
+BUILD_NUMBER := $(shell git rev-list --all --count)
+BUILDDATE := $(shell date '+%Y%m%d')
+
+CXX			= @CXX@
+EXTRA_CFLAGS = -ggdb -Wall
+INCLUDE	= -Iinclude -Ipplib/include
+CPPFLAGS	= @CPPFLAGS@
+CXXFLAGS	= @CXXFLAGS@
+
+CFLAGS		=  $(INCLUDE) $(EXTRA_CFLAGS) $(CXXFLAGS) @CFLAGS@ @DEFS@  @PTHREAD_CFLAGS@ @ZLIB_CFLAGS@ \
+	@BZ2_CFLAGS@ @PCRE2_CFLAGS@ @ICONV_CFLAGS@ @FT2_CFLAGS@ \
+
+LDFLAGS		= @LDFLAGS@
+LIBS_PPL7 =  pplib/release/libppl7-gfx.a  pplib/release/libppl7-core.a
+LIBS		= $(LIBS_PPL7)  @ASAN_FLAGS@ \
+	@LIBS@ @PTHREAD_CFLAGS@ @PTHREAD_LIBS@ @ZLIB_LIBS@ @BZ2_LIBS@ @PCRE2_LIBS@ \
+	@PNG_LIBS@ @JPEG_LIBS@ @ICONV_LIBS@ @FT2_LIBS@ \
+	-lstdc++
+
+
+PROGRAM	= pplfontmaker
+
+OBJECTS=compile/main.o \
+	compile/common.o \
+	compile/font5maker.o \
+	compile/font6maker.o
+	
+
+$(PROGRAM): update_version ppl7 $(OBJECTS)
+	$(CXX) -o $(PROGRAM) $(OBJECTS) $(LIBS)
+	-chmod 755 $(PROGRAM)
+
+all: update_version $(PROGRAM)
+
+install: update_version $(PROGRAM)
+	cp $(PROGRAM) @prefix@/bin
+
+history:
+	@echo "Git history between Tag $(PREVIOUS_TAG) and head" >  history.tmp
+	@echo "================================================================================" >>  history.tmp
+	@git log --pretty=format:"%ad=!=%s" --date=iso8601-strict $(PREVIOUS_TAG)...main | sort | awk -F "=!=" '{ print $$2}' >> history.tmp
+	cat history.tmp
+
+ppl7:
+	-mkdir -p pplib/release
+	cd pplib && $(MAKE) -j release/libppl7-core.a
+	cd pplib && $(MAKE) -j release/libppl7-gfx.a
+
+clean:
+	-rm -f compile/*.o $(PROGRAM) *.core
+
+cleanall:
+	-rm -f compile/*.o $(PROGRAM) texmaker mergeintro fixbricks *.core vplay flashlighttracking nightbackground
+	cd pplib && $(MAKE) clean
+
+update_version:
+	@mkdir -p tmp
+	@echo "#ifndef FM_VERSION_H_" > tmp/version.h
+	@echo "#define FM_VERSION_H_" >> tmp/version.h
+	@echo "#define FM_VERSION \"$(VERSION)\"" >> tmp/version.h
+	@echo "#define FM_REVSION \"$(BUILD_NUMBER)\"" >> tmp/version.h
+	@echo "#define FM_BUILDDATE $(BUILDDATE)" >> tmp/version.h
+	@echo "#endif" >> tmp/version.h
+	@diff tmp/version.h include/version.h > /dev/null 2>&1; if [ $$? -ne 0 ] ; then cp tmp/version.h include/version.h; fi
+
+
+compile/main.o: src/main.cpp Makefile include/fontmaker.h include/version.h
+	- @mkdir -p compile
+	$(CXX) -o compile/main.o -c src/main.cpp $(CFLAGS)
+
+compile/common.o: src/common.cpp Makefile include/fontmaker.h
+	- @mkdir -p compile
+	$(CXX) -o compile/common.o -c src/common.cpp $(CFLAGS)
+
+compile/font5maker.o: src/font5maker.cpp Makefile include/fontmaker.h
+	- @mkdir -p compile
+	$(CXX) -o compile/font5maker.o -c src/font5maker.cpp $(CFLAGS)
+
+compile/font6maker.o: src/font6maker.cpp Makefile include/fontmaker.h
+	- @mkdir -p compile
+	$(CXX) -o compile/font6maker.o -c src/font6maker.cpp $(CFLAGS)

@@ -4,3 +4,7 @@
 .svn
 compile
 pplfontmaker
+.github/copilot-instructions.md
+.vscode
+tmp
+autom4te.cache

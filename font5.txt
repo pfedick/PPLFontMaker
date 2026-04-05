@@ -1,0 +1,84 @@
+PPL-Font-Format 5.0                        (c) by Patrick F.-Productions in 2004
+===================
+
+Datei: *.fnt5
+
+
+PFP-Header:
+
+        Byte  0: "PFP-File"                                     (8 Bytes)
+        Byte  8: PFP-File-Version (2)                           (1 Byte)
+        Byte  9: Laenge des PFP-Header (40)                     (1 Byte)
+        Byte 10: File-ID ("FONT")                               (4 Bytes)
+        Byte 14: Unterversion  (0)                              (1 Byte)
+        Byte 15: Hauptversion  (5)                              (1 Byte)
+        Byte 16: Zeiger auf Name                                (2 Byte)
+        Byte 18: Zeiger auf Autor                               (2 Byte)
+        Byte 20: Erstelldatum                                   (4 Byte)
+        Byte 24: Erstellzeit in Sekunden                        (4 Byte)
+        Byte 28: Datum letzte Aenderung                         (4 Byte)
+        Byte 32: Zeit letzte Aenderung in Sekunden              (4 Byte)
+        Byte 36: Komprimierung                                  (2 Byte)
+
+
+Alle weiteren Adressen und Pointer sind relativ zum Start des Font-Headers!
+
+Font-Header:
+
+		Byte 40 (0): Anzahl Fonts								(2 Byte)
+		Byte 42 (2): Pointer auf Font-Index						(2 Byte)
+		Byte 44 (4): Name + 0-Byte
+					 dann Autor + 0-Byte
+					 
+		dann: Font-Index
+		
+
+Font-Index:
+		Byte 0: Size						(1 Byte)
+		Byte 1: Flags:						(1 Byte)
+				Bit 0: bold
+				Bit 1: italic
+				Bit 2: anti aliased
+				Bit 3: has outline
+				Bit 4: has shadow
+		Byte 2:	Chunk-Address				(4 Byte)
+		
+
+Font-Chunk:
+
+	Alle Pointer sind relativ zum Font-Chunk zu sehen!
+	
+	Byte 0:  Pointer auf Char-Tabelle					(2 Byte)
+	Byte 2:  Pointer auf Farbtabelle (0 bei Monochrom)  (2 Byte)
+	Byte 4:  Hoehe der Fonts							(2 Byte)
+	Byte 6:  Grundlinie									(2 Byte)
+	Byte 8:  Abstand zwischen Buchstaben				(1 Byte)
+	Byte 9:  Abstand fuer Space							(1 Byte)
+	Byte 10: Maximale Breite der Buchstaben				(2 Byte)
+	Byte 12: Minimale Breite der Buchstaben				(2 Byte)
+	Byte 14: Durchschnittliche Breite der Buchstaben	(2 Byte)	
+	Byte 16: Anzahl Farben								(1 Byte)
+	Byte 17: Bits pro Pixel bei Anti Aliased Fonts (2)  (1 Byte)
+	
+	dann: Char-Tabelle ISO-8859-15, 16 Byte pro Char
+		  Die Char-Tabelle beginnt an einer durch 4 teilbaren Adresse
+		  
+		
+		Byte 0: Pointer auf Bitmap			(4 Byte)
+		Byte 4: Pointer auf Rahmen-Map		(4 Byte)
+		Byte 8: Pointer auf Shadow-Map		(4 Byte)
+		Byte 12: Breite						(2 Byte)
+		Byte 14: Hoehe						(2 Byte)
+		
+	dann Bitmaps, pro Farbe, ist immer auf 4 Byte aligned:
+		Byte 0: Bytes der Bitmap inkl. Header	(2 Byte)
+		Byte 2: Offset-X (signed!)				(2 Byte)
+		Byte 4: Offset-Y (signed!)				(2 Byte)
+		Byte 6: reserved						(2 Byte)
+		Byte 8: Start der Bitmap
+				Die groesse der Bitmap ist immer ein vielfaches von 4
+		
+			Bei mehrfarbigen Fonts addiert man die Bytes der Bitmap
+			zur alten Bitmapadresse hinzu, um an die Startadresse
+			der naechsten Farbe zu gelangen
+			
