@@ -1,12 +1,21 @@
 #include <stdlib.h>
 #include <string.h>
+#ifdef WIN32
+#include <io.h>
+#include <fcntl.h>
+#include <windows.h>
+#endif
 #include "fontmaker.h"
 #include <locale.h>
 
 int main(int argc, char** argv)
 {
     Main m;
-    setlocale(LC_ALL, "");
+#ifdef WIN32
+    // Windows: Konsole auf UTF-8 Output schalten
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+    setlocale(LC_ALL, ".UTF-8");
     return m.start(argc, argv);
 }
 
