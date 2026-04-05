@@ -68,7 +68,7 @@ CFont6Generator::~CFont6Generator()
 
 int CFont6Generator::AddCharRange(wchar_t start, wchar_t end)
 {
-    for (wchar_t i = start; i < end; i++) {
+    for (wchar_t i = start; i <= end; i++) {
         CharList.insert(i);
     }
     return 1;
@@ -132,8 +132,7 @@ int CFont6Generator::AddGlyph(wchar_t code, FONTRENDER* render)
     g.bitmap = render->buffer;
     g.bitmapsize = render->buffersize;
 
-    // printf ("addglyph: %lc = %i, Hints: %zi, Headersize: %zi, Bitmapsize:
-    // %zi\n",code,code,numhints,headersize,g.bitmapsize);
+    printf("addglyph: %lc = %i, Hints: %zi, Headersize: %zi, Bitmapsize: %zi\n", code, code, numhints, headersize, g.bitmapsize);
     Glyphs.insert(std::pair<wchar_t, Font6Glyph>(code, g));
     totalGlyphSize += g.headersize + g.bitmapsize;
     return 1;
@@ -213,10 +212,10 @@ int CFont6Generator::Generate(int fontsize, int flags)
     size_t p = 12;
     std::map<wchar_t, Font6Glyph>::const_iterator g;
     for (g = Glyphs.begin(); g != Glyphs.end(); g++) {
+        // Sicherstellen, dass die Map-Sortierung (nach Unicode-Wert) eingehalten wird
+        // und die Daten korrekt kopiert werden.
         memcpy(buffer + p, g->second.header, g->second.headersize);
         p += g->second.headersize;
-        // printf ("Bitmapsize: %zi\n",g->second.bitmapsize);
-        // memset(buffer+p,7,g->second.bitmapsize);
         memcpy(buffer + p, g->second.bitmap, g->second.bitmapsize);
         p += g->second.bitmapsize;
     }
