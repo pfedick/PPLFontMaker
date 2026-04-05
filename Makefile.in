@@ -24,7 +24,6 @@ PROGRAM	= pplfontmaker
 
 OBJECTS=compile/main.o \
 	compile/common.o \
-	compile/font5maker.o \
 	compile/font6maker.o
 	
 

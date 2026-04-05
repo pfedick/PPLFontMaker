@@ -119,8 +119,7 @@ public:
     virtual void ListGlyphs(PFPChunk* c) = 0;
 };
 
-/*
-
+/* TODO
 class CFont5Generator : public CFontGeneratorCommon
 {
 private:
@@ -144,7 +143,6 @@ public:
     virtual void ListGlyphs(PFPChunk* c);
 };
 */
-
 class Font6Glyph
 {
 public:

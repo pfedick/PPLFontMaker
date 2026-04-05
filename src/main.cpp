@@ -158,8 +158,6 @@ int Main::checkFlags(int argc, char** argv)
 
 int Main::getSizes(int argc, char** argv)
 {
-    const char* tmp;
-    tmp = NULL;
     if ((!edit) && (!(ppl7::HaveArgv(argc, argv, "-s")))) {
         printf("Fontsize fehlt\n");
         return 0;
@@ -230,7 +228,6 @@ int Main::getFiles(int argc, char** argv)
 
 int Main::getChars(int argc, char** argv)
 {
-    const char* tmp;
     // Unicode Bereich
 
     if (ppl7::HaveArgv(argc, argv, "-c")) {
@@ -325,7 +322,7 @@ int Main::getChars(int argc, char** argv)
 
 int Main::start(int argc, char** argv)
 {
-    if (argc < 2 || ppl7::HaveArgv(argc, argv, "-h") != NULL || ppl7::HaveArgv(argc, argv, "--help") != NULL) {
+    if (argc < 2 || ppl7::HaveArgv(argc, argv, "-h") || ppl7::HaveArgv(argc, argv, "--help")) {
         help();
         return 0;
     }
@@ -370,7 +367,6 @@ int Main::start(int argc, char** argv)
 
 int Main::work(int argc, char** argv)
 {
-    const char* tmp;
     // Das Quellfile wird geladen, wenn es existiert
     try {
         font->load(target);

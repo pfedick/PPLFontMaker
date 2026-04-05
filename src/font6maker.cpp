@@ -12,8 +12,8 @@ Font6Glyph::Font6Glyph()
 
 Font6Glyph::~Font6Glyph()
 {
-    delete (header);
-    delete (bitmap);
+    free(header);
+    free(bitmap);
 }
 
 Font6Glyph::Font6Glyph(const Font6Glyph& other)
@@ -25,12 +25,12 @@ Font6Glyph::Font6Glyph(const Font6Glyph& other)
     bitmap = NULL;
     if (other.headersize > 0) {
         header = (char*)malloc(other.headersize);
-        if (!header) throw ppl6::OutOfMemoryException();
+        if (!header) throw ppl7::OutOfMemoryException();
         memcpy(header, other.header, other.headersize);
     }
     if (other.bitmapsize > 0) {
         bitmap = (char*)malloc(other.bitmapsize);
-        if (!bitmap) throw ppl6::OutOfMemoryException();
+        if (!bitmap) throw ppl7::OutOfMemoryException();
         memcpy(bitmap, other.bitmap, other.bitmapsize);
     }
 }
@@ -46,12 +46,12 @@ Font6Glyph& Font6Glyph::operator=(const Font6Glyph& other)
     bitmap = NULL;
     if (other.headersize > 0) {
         header = (char*)malloc(other.headersize);
-        if (!header) throw ppl6::OutOfMemoryException();
+        if (!header) throw ppl7::OutOfMemoryException();
         memcpy(header, other.header, other.headersize);
     }
     if (other.bitmapsize > 0) {
         bitmap = (char*)malloc(other.bitmapsize);
-        if (!bitmap) throw ppl6::OutOfMemoryException();
+        if (!bitmap) throw ppl7::OutOfMemoryException();
         memcpy(bitmap, other.bitmap, other.bitmapsize);
     }
     return *this;
@@ -59,7 +59,7 @@ Font6Glyph& Font6Glyph::operator=(const Font6Glyph& other)
 
 CFont6Generator::CFont6Generator()
 {
-    SetVersion(6, 0);
+    setVersion(6, 0);
 }
 
 CFont6Generator::~CFont6Generator()
@@ -108,26 +108,26 @@ int CFont6Generator::AddGlyph(wchar_t code, FONTRENDER* render)
     }
     Font6Glyph g;
     g.header = (char*)malloc(headersize);
-    if (!g.header) throw ppl6::OutOfMemoryException();
+    if (!g.header) throw ppl7::OutOfMemoryException();
     g.headersize = headersize;
     g.unicode = code;
-    poke32(g.header + 0, headersize + render->buffersize);
-    poke16(g.header + 4, code);
-    poke16(g.header + 6, render->width);
-    poke16(g.header + 8, render->height);
-    poke16(g.header + 10, render->bearingx);
-    poke16(g.header + 12, render->bearingy);
-    poke16(g.header + 14, render->advance);
+    Poke32(g.header + 0, headersize + render->buffersize);
+    Poke16(g.header + 4, code);
+    Poke16(g.header + 6, render->width);
+    Poke16(g.header + 8, render->height);
+    Poke16(g.header + 10, render->bearingx);
+    Poke16(g.header + 12, render->bearingy);
+    Poke16(g.header + 14, render->advance);
     if (FT_HAS_KERNING(face)) {
         numhints = 0;
         std::map<wchar_t, int>::const_iterator it;
         for (it = Hints.begin(); it != Hints.end(); it++) {
-            poke16(g.header + 16 + numhints * 4, it->first);
-            poke16(g.header + 18 + numhints * 4, it->second);
+            Poke16(g.header + 16 + numhints * 4, it->first);
+            Poke16(g.header + 18 + numhints * 4, it->second);
             numhints++;
         }
-        poke16(g.header + 16 + numhints * 4, 0);
-        poke16(g.header + 18 + numhints * 4, 0);
+        Poke16(g.header + 16 + numhints * 4, 0);
+        Poke16(g.header + 18 + numhints * 4, 0);
     }
     g.bitmap = render->buffer;
     g.bitmapsize = render->buffersize;
@@ -179,7 +179,7 @@ int CFont6Generator::Generate(int fontsize, int flags)
 
     char* buffer = (char*)malloc(bytes);
     if (!buffer) {
-        SetError(2);
+        printf("ERROR: Fehler beim Reservieren von %zi Bytes Speicher\n", bytes);
         return 0;
     }
     memset(buffer, 0, bytes);
@@ -192,22 +192,22 @@ int CFont6Generator::Generate(int fontsize, int flags)
     if (FT_HAS_KERNING(face)) {
         f |= 8;
     }
-    poke8(buffer + 0, f);
+    Poke8(buffer + 0, f);
     if (flags & FONTFLAGS::AA2)
-        poke8(buffer + 1, 4);
+        Poke8(buffer + 1, 4);
     else if (flags & FONTFLAGS::AA4)
-        poke8(buffer + 1, 5);
+        Poke8(buffer + 1, 5);
     else if (flags & FONTFLAGS::ANTIALIAS)
-        poke8(buffer + 1, 3);
+        Poke8(buffer + 1, 3);
     else if (flags & FONTFLAGS::MONO1)
-        poke8(buffer + 1, 2);
+        Poke8(buffer + 1, 2);
     else
-        poke8(buffer + 1, 1);
-    poke16(buffer + 2, fontsize);
-    poke16(buffer + 4, maxbearingy);
-    poke16(buffer + 6, maxheight);
-    poke16(buffer + 8, (0 - face->underline_position) >> 6);
-    poke16(buffer + 10, Glyphs.size());
+        Poke8(buffer + 1, 1);
+    Poke16(buffer + 2, fontsize);
+    Poke16(buffer + 4, maxbearingy);
+    Poke16(buffer + 6, maxheight);
+    Poke16(buffer + 8, (0 - face->underline_position) >> 6);
+    Poke16(buffer + 10, Glyphs.size());
 
     // Nun kopieren wir die Glyphs hinzu
     size_t p = 12;
@@ -222,9 +222,9 @@ int CFont6Generator::Generate(int fontsize, int flags)
     }
     // printf ("p=%zi, bytes=%zi\n",p,bytes);
     PFPChunk* facechunk = new PFPChunk;
-    facechunk->SetName("FACE");
-    facechunk->SetData(buffer, bytes);
-    AddChunk(facechunk);
+    facechunk->setName("FACE");
+    facechunk->setData(buffer, bytes);
+    addChunk(facechunk);
     free(buffer);
     return 1;
 }
@@ -244,29 +244,30 @@ void CFont6Generator::List()
 void CFont6Generator::List(bool withGlyphs)
 {
     const char* comp = "unkomprimiert";
-    if (this->GetCompression() == 1) comp = "Zlib-Komprimierung";
-    if (this->GetCompression() == 2) comp = "Bzip2-Komprimierung";
-    printf("PFP-File Version 3, %s Version %i.%i, %s\n", GetID(), GetMainVersion(), GetSubVersion(), comp);
-    const char* tmp;
-    if ((tmp = GetName())) printf("Name:        %s\n", tmp);
-    if ((tmp = GetAuthor())) printf("Author:      %s\n", tmp);
-    if ((tmp = GetCopyright())) printf("Copyright:   %s\n", tmp);
-    if ((tmp = GetDescription())) printf("Description: %s\n", tmp);
+    if (this->getCompression() == 1) comp = "Zlib-Komprimierung";
+    if (this->getCompression() == 2) comp = "Bzip2-Komprimierung";
+    printf("PFP-File Version 3, %s Version %i.%i, %s\n", (const char*)getID(), getMainVersion(), getSubVersion(), comp);
+    String tmp;
+    if ((tmp = getName()).notEmpty()) printf("Name:        %s\n", (const char*)tmp);
+    if ((tmp = getAuthor()).notEmpty()) printf("Author:      %s\n", (const char*)tmp);
+    if ((tmp = getCopyright()).notEmpty()) printf("Copyright:   %s\n", (const char*)tmp);
+    if ((tmp = getDescription()).notEmpty()) printf("Description: %s\n", (const char*)tmp);
 
-    Reset();
+    ppl7::PFPFile::Iterator it;
+    reset(it);
     PFPChunk* c;
     char* b;
     int flags;
     int pixelformat;
-    ppl6::CString s;
-    while ((c = (PFPChunk*)GetNext())) {
-        if (strcmp(c->Name(), "FACE") == 0) {
-            b = (char*)c->Data();
-            printf("FACE Fontsize: %i, Size: %i Byte, Glyphs: %i", peek16(b + 2), c->Size(), peek16(b + 10));
-            printf(", MaxBY: %i, MaxHeight: %i, Underscore: %i", peek16(b + 4), peek16(b + 6), peek16(b + 8));
-            flags = peek8(b);
-            pixelformat = peek8(b + 1);
-            s.Clear();
+    ppl7::String s;
+    while ((c = (PFPChunk*)getNext(it))) {
+        if (c->name() == "FACE") {
+            b = (char*)c->data();
+            printf("FACE Fontsize: %i, Size: %zd Byte, Glyphs: %i", Peek16(b + 2), c->size(), Peek16(b + 10));
+            printf(", MaxBY: %i, MaxHeight: %i, Underscore: %i", Peek16(b + 4), Peek16(b + 6), Peek16(b + 8));
+            flags = Peek8(b);
+            pixelformat = Peek8(b + 1);
+            s.clear();
             if (flags & 1) {
                 s += "Antialiased, ";
                 if (pixelformat == 3) s += "8 Bit/Pixel, ";
@@ -280,8 +281,8 @@ void CFont6Generator::List(bool withGlyphs)
             if (flags & 2) s += "Bold, ";
             if (flags & 4) s += "Italic, ";
             if (flags & 8) s += "with Hints, ";
-            s.Chop(2);
-            if (s.Len())
+            s.chop(2);
+            if (s.len())
                 printf(", Flags: %s\n", (const char*)s);
             else
                 printf(", Flags: keine\n");
@@ -292,11 +293,11 @@ void CFont6Generator::List(bool withGlyphs)
 
 void CFont6Generator::ListGlyphs(PFPChunk* c)
 {
-    char* b = (char*)c->Data() + 12;
-    ppluint32 num = 0;
+    char* b = (char*)c->data() + 12;
+    uint32_t num = 0;
     while (1) {
-        ppluint32 chunksize = ppl6::peek32(b);
-        ppluint16 unicode = ppl6::peek16(b + 4);
+        uint32_t chunksize = ppl7::Peek32(b);
+        uint16_t unicode = ppl7::Peek16(b + 4);
         if (chunksize == 0 || unicode == 0) break;
         printf("%4d: Unicode: %5d, Chunksize: %5d\n", num, unicode, chunksize);
         num++;

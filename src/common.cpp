@@ -3,7 +3,7 @@
 
 CFontGeneratorCommon::CFontGeneratorCommon()
 {
-    SetId("FONT");
+    setId("FONT");
     // Freetype initialisieren
     FT_Init_FreeType(&ftlib);
     face = NULL;
@@ -79,20 +79,20 @@ int CFontGeneratorCommon::Render(int code, FONTRENDER* render)
 
     render->buffer = (char*)malloc(render->buffersize);
     if (!render->buffer) {
-        SetError(2);
+        printf("ERROR: Fehler beim Reservieren von %zi Bytes Speicher\n", render->buffersize);
         return 0;
     }
     memset(render->buffer, 0, render->buffersize);
 
-    char* glyph = (char*)slot->bitmap.buffer;
+    uint8_t* glyph = (uint8_t*)slot->bitmap.buffer;
     char* zz = render->buffer;
 
-    ppldb w1, w2;
+    uint8_t w1, w2;
     int maxwidth = 0;
     int minwidth = 999999;
     if (render->flags & FONTFLAGS::AA2) {
-        ppldb zbits = 0;
-        ppldb zv = 0;
+        uint8_t zbits = 0;
+        uint8_t zv = 0;
         for (int gy = 0; gy < (int)slot->bitmap.rows; gy++) {
             for (int gx = 0; gx < (int)slot->bitmap.width; gx++) {
                 w1 = glyph[gx];
@@ -127,8 +127,8 @@ int CFontGeneratorCommon::Render(int code, FONTRENDER* render)
         }
         // HexDump(render->buffer,render->buffersize);
     } else if (render->flags & FONTFLAGS::AA4) {
-        ppldb zbits = 0;
-        ppldb zv = 0;
+        uint8_t zbits = 0;
+        uint8_t zv = 0;
         for (int gy = 0; gy < (int)slot->bitmap.rows; gy++) {
             for (int gx = 0; gx < (int)slot->bitmap.width; gx++) {
                 w1 = glyph[gx];
@@ -160,7 +160,7 @@ int CFontGeneratorCommon::Render(int code, FONTRENDER* render)
                 w1 = glyph[gx];
                 if (render->flags & FONTFLAGS::GENERATEBOLD) {
                     if (w1 > 31) {
-                        if ((ppldb)zz[gx] < w1) zz[gx] = w1;
+                        if ((uint8_t)zz[gx] < w1) zz[gx] = w1;
                         zz[gx + 1] = w1;
                     } else {
                         zz[gx] = w1;
@@ -182,8 +182,8 @@ int CFontGeneratorCommon::Render(int code, FONTRENDER* render)
                          // if (minwidth>0) render->bearingx=0-minwidth;
         }
     } else if (render->flags & FONTFLAGS::MONO8) {
-        ppldb bitcount = 0;
-        ppldb bytecount = 0;
+        uint8_t bitcount = 0;
+        uint8_t bytecount = 0;
         for (int gy = 0; gy < (int)slot->bitmap.rows; gy++) {
             for (int gx = 0; gx < (int)slot->bitmap.width; gx++) {
                 if (!bitcount) {
@@ -192,9 +192,9 @@ int CFontGeneratorCommon::Render(int code, FONTRENDER* render)
                     bytecount++;
                 }
                 if (w1 & 128) {
-                    zz[gx] = (ppldb)255;
+                    zz[gx] = (uint8_t)255;
                     if (render->flags & FONTFLAGS::GENERATEBOLD) {
-                        zz[gx + 1] = (ppldb)255;
+                        zz[gx + 1] = (uint8_t)255;
                     }
                     if (gx < minwidth) minwidth = gx;
                     if (gx > maxwidth) maxwidth = gx;
@@ -212,10 +212,10 @@ int CFontGeneratorCommon::Render(int code, FONTRENDER* render)
                          // if (minwidth>0) render->bearingx=0-minwidth;
         }
     } else if (render->flags & FONTFLAGS::MONO1) {
-        ppldb bitcount = 0;
-        ppldb bytecount = 0;
-        ppldb zbits = 0;
-        ppldb zv = 0;
+        uint8_t bitcount = 0;
+        uint8_t bytecount = 0;
+        uint8_t zbits = 0;
+        uint8_t zv = 0;
         for (int gy = 0; gy < (int)slot->bitmap.rows; gy++) {
             for (int gx = 0; gx < (int)slot->bitmap.width; gx++) {
                 if (!bitcount) {
@@ -258,10 +258,10 @@ int CFontGeneratorCommon::Render(int code, FONTRENDER* render)
     return 1;
 }
 
-int CFontGeneratorCommon::BltGlyph(ppl6::grafix::CDrawable& surface, int x, int y, FONTRENDER* glyph, ppl6::grafix::Color& c)
+int CFontGeneratorCommon::BltGlyph(ppl7::grafix::Drawable& surface, int x, int y, FONTRENDER* glyph, ppl7::grafix::Color& c)
 {
     char* buffer = glyph->buffer;
-    ppluint8 w;
+    uint8_t w;
     y -= glyph->bearingy;
     x += glyph->bearingx;
     if (glyph->flags & FONTFLAGS::ANTIALIAS) {
@@ -286,18 +286,18 @@ int CFontGeneratorCommon::BltGlyph(ppl6::grafix::CDrawable& surface, int x, int 
 
 void CFontGeneratorCommon::DeleteFace(int size, int flags)
 {
-    Reset();
+    ppl7::PFPFile::Iterator it;
     PFPChunk* c;
     char* b;
     int fflags;
     // printf ("DeleteFace, size=%i, flags=%i\n",size,flags);
-    while ((c = (PFPChunk*)FindNextChunk("FACE"))) {
-        b = (char*)c->Data();
-        fflags = peek8(b) & 7;
+    while ((c = (PFPChunk*)findNextChunk(it, "FACE"))) {
+        b = (char*)c->data();
+        fflags = ppl7::Peek8(b) & 7;
         // printf ("Face size=%i, flags=%i\n",peek16(b+2),fflags);
-        if (fflags == flags && (int)peek16(b + 2) == size) {
-            DeleteChunk(c);
-            Reset();
+        if (fflags == flags && (int)Peek16(b + 2) == size) {
+            deleteChunk(c);
+            reset(it);
         }
     }
 }
@@ -305,6 +305,6 @@ void CFontGeneratorCommon::DeleteFace(int size, int flags)
 void CFontGeneratorCommon::CopyFreeTypeName()
 {
     if (face) {
-        SetName(face->family_name);
+        setName(face->family_name);
     }
 }
