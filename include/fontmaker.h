@@ -37,16 +37,16 @@ class CFontGeneratorCommon;
 class Main
 {
 private:
-    const char* edit;
-    const char* quelle;
-    const char* target;
+    ppl7::String edit;
+    ppl7::String quelle;
+    ppl7::String target;
     int flags;
-    ppl6::CArray Todo;
+    std::set<int> FontSizesTodo;
     int fontVersion;
 
     CFontGeneratorCommon* font;
 
-    int list(const char* filename, bool withglyphs = false);
+    int list(const ppl7::String& filename, bool withglyphs = false);
     int checkFlags(int argc, char** argv);
     int getSizes(int argc, char** argv);
     int getFiles(int argc, char** argv);
@@ -75,7 +75,7 @@ typedef struct
 
 class CFont5Generator;
 
-class Font5Glyph : public ppl6::CTreeItem
+class Font5Glyph
 {
     friend class CFont5Generator;
 
@@ -88,11 +88,9 @@ private:
 public:
     Font5Glyph();
     virtual ~Font5Glyph();
-    virtual int CompareNode(CTreeItem* item);
-    virtual int CompareValue(void* value);
 };
 
-class CFontGeneratorCommon : public ppl6::PFPFile
+class CFontGeneratorCommon : public ppl7::PFPFile
 {
     friend class CFont5Generator;
 
@@ -108,7 +106,7 @@ public:
     int LoadFont(const char* file);
 
     int Render(int code, FONTRENDER* render);
-    int BltGlyph(ppl6::grafix::CDrawable& surface, int x, int y, FONTRENDER* glyph, ppl6::grafix::Color& c);
+    int BltGlyph(ppl7::grafix::Drawable& surface, int x, int y, FONTRENDER* glyph, ppl7::grafix::Color& c);
 
     void DeleteFace(int size, int flags);
     void CopyFreeTypeName();
@@ -121,13 +119,15 @@ public:
     virtual void ListGlyphs(PFPChunk* c) = 0;
 };
 
+/*
+
 class CFont5Generator : public CFontGeneratorCommon
 {
 private:
     PFPChunk* fontchunk;
     int debugx, debugy;
     ppl6::CAssocArray CharRanges;
-    ppl6::CTree Glyphs;
+    std::map<wchar_t : Font5Glyph> Glyphs;
 
     int AddGlyph(wchar_t code, FONTRENDER* render);
 
@@ -143,6 +143,7 @@ public:
     virtual void List(bool withGlyphs);
     virtual void ListGlyphs(PFPChunk* c);
 };
+*/
 
 class Font6Glyph
 {
