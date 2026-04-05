@@ -79,6 +79,7 @@ void Main::help()
            "  --zlib      Zlib-Kompression verwenden (Default=unkomprimiert)\n"
            "  --bzip2     Bzip2-Kompression verwenden (Default=unkomprimiert)\n"
            "  --idn       Fügt alle für .de-Domains erlaubten IDN-Zeichen hinzu\n"
+           "  --disable-hints  Hints deaktivieren (nur in Font6)\n"
            "\n"
            "Sonstiges:\n"
            "  -h oder --help Zeigt diese Hilfe an\n"
@@ -410,6 +411,11 @@ int Main::work(int argc, char** argv)
     else
         font->setCompression(ppl7::Compression::Algo_NONE);
 
+    if (ppl7::HaveArgv(argc, argv, "--disable-hints")) {
+        font->enableHints(false);
+    } else {
+        font->enableHints(true);
+    }
     if (quelle.notEmpty()) {
         if (!font->LoadFont(quelle)) {
             printf("ERROR: Fehler beim Laden der Quelldatei\n");

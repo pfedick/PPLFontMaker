@@ -60,6 +60,9 @@ Font6Glyph& Font6Glyph::operator=(const Font6Glyph& other)
 CFont6Generator::CFont6Generator()
 {
     setVersion(6, 0);
+    hintsEnabled = true;
+    totalGlyphSize = 0;
+    totalHintsSize = 0;
 }
 
 CFont6Generator::~CFont6Generator()
@@ -89,7 +92,7 @@ int CFont6Generator::AddGlyph(wchar_t code, FONTRENDER* render)
 
     // Wieviele Hints gibt es ?
     size_t numhints = 0;
-    if (FT_HAS_KERNING(face)) {
+    if (FT_HAS_KERNING(face) && hintsEnabled) {
         FT_Vector kerning;
         std::set<wchar_t>::const_iterator it;
         for (it = CharList.begin(); it != CharList.end(); it++) {
@@ -118,7 +121,7 @@ int CFont6Generator::AddGlyph(wchar_t code, FONTRENDER* render)
     Poke16(g.header + 10, render->bearingx);
     Poke16(g.header + 12, render->bearingy);
     Poke16(g.header + 14, render->advance);
-    if (FT_HAS_KERNING(face)) {
+    if (FT_HAS_KERNING(face) && hintsEnabled) {
         numhints = 0;
         std::map<wchar_t, int>::const_iterator it;
         for (it = Hints.begin(); it != Hints.end(); it++) {
@@ -132,7 +135,7 @@ int CFont6Generator::AddGlyph(wchar_t code, FONTRENDER* render)
     g.bitmap = render->buffer;
     g.bitmapsize = render->buffersize;
 
-    printf("addglyph: %lc = %i, Hints: %zi, Headersize: %zi, Bitmapsize: %zi\n", code, code, numhints, headersize, g.bitmapsize);
+    // printf("addglyph: %lc = %i, Hints: %zi, Headersize: %zi, Bitmapsize: %zi\n", code, code, numhints, headersize, g.bitmapsize);
     Glyphs.insert(std::pair<wchar_t, Font6Glyph>(code, g));
     totalGlyphSize += g.headersize + g.bitmapsize;
     return 1;
@@ -188,7 +191,7 @@ int CFont6Generator::Generate(int fontsize, int flags)
     if (flags & FONTFLAGS::ISBOLD) f |= 2;
     if (flags & FONTFLAGS::GENERATEBOLD) f |= 2;
     if (flags & FONTFLAGS::ISITALIC) f |= 4;
-    if (FT_HAS_KERNING(face)) {
+    if (FT_HAS_KERNING(face) && hintsEnabled) {
         f |= 8;
     }
     Poke8(buffer + 0, f);
@@ -233,6 +236,11 @@ int CFont6Generator::LoadRequest(const char* id, int mainversion, int subversion
     // Handelt es sich auch um eine Font5-Datei?
     if (strcmp(id, "FONT") != 0 || mainversion != 6 || subversion != 0) return 0;
     return 1;
+}
+
+void CFont6Generator::enableHints(bool enable)
+{
+    hintsEnabled = enable;
 }
 
 void CFont6Generator::List()

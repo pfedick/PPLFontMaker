@@ -119,6 +119,7 @@ public:
     virtual void List() = 0;
     virtual void List(bool withGlyphs) = 0;
     virtual void ListGlyphs(PFPChunk* c) = 0;
+    virtual void enableHints(bool enable) = 0;
 };
 
 class CFont5Generator : public CFontGeneratorCommon
@@ -167,6 +168,7 @@ private:
     std::map<wchar_t, Font6Glyph> Glyphs;
     size_t totalGlyphSize;
     size_t totalHintsSize;
+    bool hintsEnabled;
 
     int AddGlyph(wchar_t code, FONTRENDER* render);
 
@@ -182,6 +184,7 @@ public:
     virtual void List();
     virtual void List(bool withGlyphs);
     virtual void ListGlyphs(PFPChunk* c);
+    void enableHints(bool enable) override;
 };
 
 #endif
