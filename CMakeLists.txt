@@ -1,0 +1,47 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(pplfontmaker VERSION 1.6.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+
+# pplib8 liegt im Homeverzeichnis des Benutzers (~/lib oder ~/lib64)
+list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/lib" "$ENV{HOME}/lib64")
+
+find_package(pplib8 REQUIRED)
+find_package(Freetype REQUIRED)
+
+# Versions-Header in den Buildverzeichnis erzeugen
+string(TIMESTAMP FM_BUILDDATE_INT "%Y%m%d" UTC)
+string(TIMESTAMP FM_BUILDDATE_STRING "%d.%m.%Y" UTC)
+
+set(FM_GIT_REVISION "0")
+find_package(Git QUIET)
+if(GIT_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
+    execute_process(COMMAND "${GIT_EXECUTABLE}" rev-list --count HEAD
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                    OUTPUT_VARIABLE FM_GIT_REVISION
+                    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/version.h.in"
+               "${CMAKE_CURRENT_BINARY_DIR}/include/version.h" @ONLY)
+
+add_executable(pplfontmaker
+    src/main.cpp
+    src/common.cpp
+    src/font5maker.cpp
+    src/font6maker.cpp)
+
+target_include_directories(pplfontmaker PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_BINARY_DIR}/include")
+
+target_link_libraries(pplfontmaker PRIVATE
+    pplib::core
+    pplib::grafix
+    Freetype::Freetype)
+
+install(TARGETS pplfontmaker RUNTIME DESTINATION bin)

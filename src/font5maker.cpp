@@ -17,7 +17,7 @@ Font5Glyph::Font5Glyph(const Font5Glyph& other)
     size = other.size;
     if (other.bitmap) {
         bitmap = (char*)malloc(size);
-        if (!bitmap) throw ppl7::OutOfMemoryException();
+        if (!bitmap) throw pplib::OutOfMemoryException();
         memcpy(bitmap, other.bitmap, size);
     }
 }
@@ -36,7 +36,7 @@ Font5Glyph& Font5Glyph::operator=(const Font5Glyph& other)
     size = other.size;
     if (other.bitmap) {
         bitmap = (char*)malloc(size);
-        if (!bitmap) throw ppl7::OutOfMemoryException();
+        if (!bitmap) throw pplib::OutOfMemoryException();
         memcpy(bitmap, other.bitmap, size);
     }
     return *this;
@@ -44,10 +44,8 @@ Font5Glyph& Font5Glyph::operator=(const Font5Glyph& other)
 
 CFont5Generator::CFont5Generator()
 {
+    setId("FONT");
     setVersion(5, 0);
-    fontchunk = new PFPChunk;
-    fontchunk->setName("FONT");
-    addChunk(fontchunk);
 }
 
 CFont5Generator::~CFont5Generator()
@@ -55,24 +53,23 @@ CFont5Generator::~CFont5Generator()
     Glyphs.clear();
 }
 
+void CFont5Generator::enableHints(bool enable)
+{
+    // Das Font5-Format kennt keine Hints
+}
+
 int CFont5Generator::AddCharRange(wchar_t start, wchar_t end)
 {
     // Zuerst prüfen, ob es die Range schon gibt
-    ppl7::AssocArray::Iterator it;
-    CharRanges.reset(it);
-    ppl6::CAssocArray* r;
-    while ((r = CharRanges.getNextArray())) {
-        wchar_t s = (wchar_t)ppl6::atoi(r->Get("start"));
-        wchar_t e = (wchar_t)ppl6::atoi(r->Get("end"));
+    for (const auto& range : CharRanges) {
+        wchar_t s = range.first;
+        wchar_t e = range.second;
         if (start >= s && start <= e) return 0;
         if (end >= s && end <= e) return 0;
         if (start <= s && end >= e) return 0;
     }
     // Ok, es gibt keine Überschneidungen
-    ppl6::CAssocArray a;
-    a.Setf("start", "%i", start);
-    a.Setf("end", "%i", end);
-    CharRanges.Set("[]", &a);
+    CharRanges.emplace_back(start, end);
     return 1;
 }
 
@@ -114,12 +111,10 @@ int CFont5Generator::Generate(int fontsize, int flags)
     wchar_t start, end;
     int numJumpTables = 0;
     int numGlyphs = 0;
-    CharRanges.Reset();
-    ppl6::CAssocArray* r;
-    while ((r = CharRanges.GetNextArray())) {
+    for (const auto& range : CharRanges) {
         numJumpTables++;
-        start = ppl6::atoi(r->Get("start"));
-        end = ppl6::atoi(r->Get("end"));
+        start = range.first;
+        end = range.second;
         for (int i = start; i <= end; i++) {
             numGlyphs++;
             if (Render(i, &glyph)) {
@@ -172,18 +167,18 @@ int CFont5Generator::Generate(int fontsize, int flags)
     char* jump = buffer + 12 + numJumpTables * 8;
     int p = 12 + numJumpTables * 8 + numGlyphs * 4;
     char* b = buffer + p;
-    Font5Glyph* g;
-    CharRanges.Reset();
-    while ((r = CharRanges.GetNextArray())) {
-        start = ppl6::atoi(r->Get("start"));
-        end = ppl6::atoi(r->Get("end"));
+    Font5Glyph* g = nullptr;
+    for (const auto& range : CharRanges) {
+        start = range.first;
+        end = range.second;
         Poke16(jumpindex + 0, start);
         Poke16(jumpindex + 2, end);
         Poke32(jumpindex + 4, jump - buffer);
         jumpindex += 8;
         for (int i = start; i <= end; i++) {
-            g = (Font5Glyph*)Glyphs.find(&i);
-            if (g) {
+            auto found = Glyphs.find(i);
+            if (found != Glyphs.end()) {
+                g = &found->second;
                 Poke32(jump, p);
                 memcpy(b, g->header, 10);
                 memcpy(b + 10, g->bitmap, g->size - 10);
@@ -194,20 +189,13 @@ int CFont5Generator::Generate(int fontsize, int flags)
         }
     }
 
-    PFPChunk* facechunk = new PFPChunk;
-    facechunk->setName("FACE");
-    facechunk->setData(buffer, bytes);
-    addChunk(facechunk);
+    PFPChunk facechunk;
+    facechunk.setName("FACE");
+    facechunk.setData(buffer, bytes);
+    addChunk(std::move(facechunk));
     Glyphs.clear();
     free(buffer);
 
-    return 1;
-}
-
-int CFont5Generator::LoadRequest(const char* id, int mainversion, int subversion)
-{
-    // Handelt es sich auch um eine Font5-Datei?
-    if (strcmp(id, "FONT") != 0 || mainversion != 5 || subversion != 0) return 0;
     return 1;
 }
 
@@ -219,23 +207,23 @@ void CFont5Generator::List()
 void CFont5Generator::List(bool withGlyphs)
 {
     const char* comp = "unkomprimiert";
-    if (this->getCompression() == 1) comp = "Zlib-Komprimierung";
-    if (this->getCompression() == 2) comp = "Bzip2-Komprimierung";
+    if (this->getCompression() == pplib::Compression::Algorithm::ZLIB) comp = "Zlib-Komprimierung";
+    if (this->getCompression() == pplib::Compression::Algorithm::BZIP2) comp = "Bzip2-Komprimierung";
     printf("PFP-File Version 3, %s Version %i.%i, %s\n", (const char*)getID(), getMainVersion(), getSubVersion(), comp);
-    ppl7::String tmp;
+    pplib::String tmp;
     if ((tmp = getName()).notEmpty()) printf("Name:        %s\n", (const char*)tmp);
     if ((tmp = getAuthor()).notEmpty()) printf("Author:      %s\n", (const char*)tmp);
     if ((tmp = getCopyright()).notEmpty()) printf("Copyright:   %s\n", (const char*)tmp);
     if ((tmp = getDescription()).notEmpty()) printf("Description: %s\n", (const char*)tmp);
 
-    ppl7::PFPFile::Iterator it;
+    pplib::PFPFile::Iterator it;
     reset(it);
     PFPChunk* c;
     char* b;
     char* jumpindex;
     int flags;
     int pixelformat;
-    ppl7::String s;
+    pplib::String s;
     while ((c = (PFPChunk*)getNext(it))) {
         if (c->name() == "FACE") {
             b = (char*)c->data();
@@ -288,7 +276,8 @@ void CFont5Generator::ListGlyphs(PFPChunk* c)
         jumpindex += 8;
         uint32_t p;
         for (wchar_t i = start; i <= end; i++) {
-            s.set(i);
+            s.clear();
+            s += i;
             p = Peek32(jump + (i - start) * 4);
             if (p) {
                 glyph = header + p;

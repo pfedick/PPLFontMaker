@@ -13,3 +13,4 @@ config.status
 Makefile
 pplfontmaker.exe
 *.fnt6
+build/

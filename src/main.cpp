@@ -5,6 +5,13 @@
 #include <fcntl.h>
 #include <windows.h>
 #endif
+#include <pplib/core/args.h>
+#include <pplib/core/compression.h>
+#include <pplib/core/dir.h>
+#include <pplib/core/file.h>
+#include <pplib/core/regex.h>
+#include <pplib/exceptions.h>
+#include <pplib/types/array.h>
 #include "fontmaker.h"
 #include <locale.h>
 
@@ -32,8 +39,8 @@ Main::~Main()
 
 void Main::version()
 {
-    ppl7::String s;
-    s.setf("PPL FONTMAKER Version %s vom %s", FM_VERSION, FM_RELEASEDATE);
+    pplib::String s;
+    s.setf("PPL FONTMAKER Version %s (Revision %s) vom %s", FM_VERSION, FM_REVSION, FM_BUILDDATE_STRING);
     s.print(true);
     s.repeat("=", s.len());
     s.print(true);
@@ -59,7 +66,7 @@ void Main::help()
            "              soll. Es können mehrere kommagetrennte Bereiche\n"
            "              angegeben werden. Default = 32-255,8364 (€-Symbol),\n"
            "              7838 (ẞ, grosses SZ)\n"
-           //           "  -5          PPL-Font Version 5 generieren\n"
+           "  -5          PPL-Font Version 5 generieren\n"
            "  -6          PPL-Font Version 6 generieren (=Default)\n"
            "Flags:\n"
            "  --aa        Antialiased Fonts erstellen\n"
@@ -94,33 +101,38 @@ void Main::help()
            "\n");
 }
 
-int Main::list(const ppl7::String& filename, bool withglyphs)
+int Main::list(const pplib::String& filename, bool withglyphs)
 {
-    ppl7::PFPFile ff;
+    pplib::PFPFile ff;
     if (!ff.ident(filename)) {
         printf("ERROR: Unbekanntes Dateiformat\n");
         return 1;
     }
-    ppl7::String Id = ff.getID();
-    if (Id != "FONT") {
+    pplib::String Id = ff.getID();
+    if (Id != "FONT" && Id != "UNKN") {
         printf("ERROR: Kein FONT-Format, sondern %s, Version %i.%i\n", (const char*)ff.getID(), ff.getMainVersion(), ff.getSubVersion());
         return 1;
     }
     if (ff.getMainVersion() == 5) {
-        /* TODO
         CFont5Generator font5;
-        if (!font5.Load(quelle)) {
-            ppl6::PrintError();
+        try {
+            font5.load(filename);
+        }
+        catch (const pplib::Exception& e) {
+            printf("ERROR: Fehler beim Laden der Font-Datei\n");
+            e.print();
             return 1;
         }
         font5.List(withglyphs);
-        */
-        printf("Fint5-Format wird zur Zeit nicht unterstützt.\n");
         return 0;
     } else if (ff.getMainVersion() == 6) {
         CFont6Generator font6;
-        if (!font6.LoadFont(quelle)) {
+        try {
+            font6.load(filename);
+        }
+        catch (const pplib::Exception& e) {
             printf("ERROR: Fehler beim Laden der Font-Datei\n");
+            e.print();
             return 1;
         }
         font6.List(withglyphs);
@@ -134,28 +146,28 @@ int Main::checkFlags(int argc, char** argv)
 {
     flags = 0;
     // Die Flags --aa, --mono1 und --mono8 können nicht gemeinsam verwendet werden
-    if (ppl7::HaveArgv(argc, argv, "--aa")) flags++;
-    if (ppl7::HaveArgv(argc, argv, "--mono1")) flags++;
-    if (ppl7::HaveArgv(argc, argv, "--mono8")) flags++;
+    if (pplib::HaveArgv(argc, argv, "--aa")) flags++;
+    if (pplib::HaveArgv(argc, argv, "--mono1")) flags++;
+    if (pplib::HaveArgv(argc, argv, "--mono8")) flags++;
     if (flags > 1) {
         printf("Die Flags \"--aa\", \"--mono1\" und \"--mono8\" können nicht gemeinsam verwendet werden\n");
         return 0;
     }
 
     flags = 0;
-    if (ppl7::HaveArgv(argc, argv, "--aa2"))
+    if (pplib::HaveArgv(argc, argv, "--aa2"))
         flags |= FONTFLAGS::ANTIALIAS | FONTFLAGS::AA2;
-    else if (ppl7::HaveArgv(argc, argv, "--aa4"))
+    else if (pplib::HaveArgv(argc, argv, "--aa4"))
         flags |= FONTFLAGS::ANTIALIAS | FONTFLAGS::AA4;
-    else if (ppl7::HaveArgv(argc, argv, "--aa"))
+    else if (pplib::HaveArgv(argc, argv, "--aa"))
         flags |= FONTFLAGS::ANTIALIAS;
-    else if (ppl7::HaveArgv(argc, argv, "--mono8"))
+    else if (pplib::HaveArgv(argc, argv, "--mono8"))
         flags |= FONTFLAGS::MONO8;
     else
         flags |= FONTFLAGS::MONO1;
-    if (ppl7::HaveArgv(argc, argv, "--isbold")) flags |= FONTFLAGS::ISBOLD;
-    if (ppl7::HaveArgv(argc, argv, "--isitalic")) flags |= FONTFLAGS::ISITALIC;
-    if (ppl7::HaveArgv(argc, argv, "--genbold")) {
+    if (pplib::HaveArgv(argc, argv, "--isbold")) flags |= FONTFLAGS::ISBOLD;
+    if (pplib::HaveArgv(argc, argv, "--isitalic")) flags |= FONTFLAGS::ISITALIC;
+    if (pplib::HaveArgv(argc, argv, "--genbold")) {
         if ((flags & FONTFLAGS::AA2) == 0 && (flags & FONTFLAGS::AA4) == 0 && (flags & FONTFLAGS::MONO1) == 0) {
             flags |= FONTFLAGS::GENERATEBOLD;
         } else {
@@ -168,16 +180,16 @@ int Main::checkFlags(int argc, char** argv)
 
 int Main::getSizes(int argc, char** argv)
 {
-    if ((!edit) && (!(ppl7::HaveArgv(argc, argv, "-s")))) {
+    if ((!edit) && (!(pplib::HaveArgv(argc, argv, "-s")))) {
         printf("Fontsize fehlt\n");
         return 0;
     }
     int start, end;
-    ppl7::String Size = ppl7::GetArgv(argc, argv, "-s");
-    ppl7::String Tmp;
+    pplib::String Size = pplib::GetArgv(argc, argv, "-s");
+    pplib::String Tmp;
     std::vector<String> Matches;
 
-    if (ppl7::RegEx::capture("/^([0-9]+)\\-([0-9]+)$", Size, Matches)) { // Range
+    if (pplib::RegEx::capture("/^([0-9]+)\\-([0-9]+)$", Size, Matches)) { // Range
         start = Matches[1].toInt();
         end = Matches[2].toInt();
         if (end < start) {
@@ -188,7 +200,7 @@ int Main::getSizes(int argc, char** argv)
             FontSizesTodo.insert(i);
         }
     } else if (Size.instr(",", 0) >= 0) { // Liste
-        ppl7::Array a(Size, ",");
+        pplib::Array a(Size, ",");
         for (auto it = a.begin(); it != a.end(); ++it) {
             FontSizesTodo.insert(it->toInt());
         }
@@ -204,10 +216,10 @@ int Main::getSizes(int argc, char** argv)
 
 int Main::getFiles(int argc, char** argv)
 {
-    edit = ppl7::GetArgv(argc, argv, "-e");
-    quelle = ppl7::GetArgv(argc, argv, "-q");
-    target = ppl7::GetArgv(argc, argv, "-t");
-    if (ppl7::HaveArgv(argc, argv, "-e")) {
+    edit = pplib::GetArgv(argc, argv, "-e");
+    quelle = pplib::GetArgv(argc, argv, "-q");
+    target = pplib::GetArgv(argc, argv, "-t");
+    if (pplib::HaveArgv(argc, argv, "-e")) {
         target = edit;
     } else {
         if (target.isEmpty()) {
@@ -215,7 +227,7 @@ int Main::getFiles(int argc, char** argv)
             return 0;
         }
     }
-    if (!ppl7::HaveArgv(argc, argv, "-e")) {
+    if (!pplib::HaveArgv(argc, argv, "-e")) {
         if (quelle.isEmpty()) {
             printf("Quelle fehlt\n");
             return 0;
@@ -223,11 +235,11 @@ int Main::getFiles(int argc, char** argv)
     }
     if (quelle.notEmpty()) {
         // Läßt sich die Quelle öffnen?
-        ppl7::File ff;
+        pplib::File ff;
         try {
-            ff.open(quelle, ppl7::File::READ);
+            ff.open(quelle, pplib::File::FileMode::READ);
         }
-        catch (const ppl7::Exception& e) {
+        catch (const pplib::Exception& e) {
             printf("ERROR: Fehler beim Öffnen der Quelldatei: %s\n", e.what());
             e.print();
             return 0;
@@ -240,13 +252,13 @@ int Main::getChars(int argc, char** argv)
 {
     // Unicode Bereich
 
-    if (ppl7::HaveArgv(argc, argv, "-c")) {
-        Array CharsTodo(ppl7::GetArgv(argc, argv, "-c"), ",");
+    if (pplib::HaveArgv(argc, argv, "-c")) {
+        Array CharsTodo(pplib::GetArgv(argc, argv, "-c"), ",");
         int start, end;
         for (auto it = CharsTodo.begin(); it != CharsTodo.end(); ++it) {
-            ppl7::String Size = *it;
+            pplib::String Size = *it;
             std::vector<String> Matches;
-            if (ppl7::RegEx::capture("/^([0-9]+)\\-([0-9]+)$/", Size, Matches)) { // Range
+            if (pplib::RegEx::capture("/^([0-9]+)\\-([0-9]+)$/", Size, Matches)) { // Range
                 start = Matches[1].toInt();
                 end = Matches[2].toInt();
                 if (end < start) {
@@ -254,7 +266,7 @@ int Main::getChars(int argc, char** argv)
                     end = Matches[1].toInt();
                 }
                 font->AddCharRange(start, end);
-            } else if (ppl7::RegEx::capture("/^([0-9]+)$/", Size, Matches)) { // Einzelnes Zeichen
+            } else if (pplib::RegEx::capture("/^([0-9]+)$/", Size, Matches)) { // Einzelnes Zeichen
                 start = Matches[1].toInt();
                 font->AddChar(start);
             } else {
@@ -267,7 +279,7 @@ int Main::getChars(int argc, char** argv)
         font->AddChar(8364);   // €
         font->AddChar(0x1E9E); // Grosses ß: ẞ
     }
-    if (ppl7::HaveArgv(argc, argv, "--idn")) {
+    if (pplib::HaveArgv(argc, argv, "--idn")) {
         // Zusätzliche IDN-Zeichen:
         font->AddChar(263); // 263: ć
         font->AddChar(265); // 265: ĉ
@@ -332,25 +344,25 @@ int Main::getChars(int argc, char** argv)
 
 int Main::start(int argc, char** argv)
 {
-    if (argc < 2 || ppl7::HaveArgv(argc, argv, "-h") || ppl7::HaveArgv(argc, argv, "--help")) {
+    if (argc < 2 || pplib::HaveArgv(argc, argv, "-h") || pplib::HaveArgv(argc, argv, "--help")) {
         help();
         return 0;
     }
-    if (ppl7::HaveArgv(argc, argv, "-v") || ppl7::HaveArgv(argc, argv, "--version")) {
+    if (pplib::HaveArgv(argc, argv, "-v") || pplib::HaveArgv(argc, argv, "--version")) {
         version();
         return 0;
     }
     // Fontversion
-    if (ppl7::HaveArgv(argc, argv, "-5")) fontVersion = 5;
-    if (ppl7::HaveArgv(argc, argv, "-6")) fontVersion = 6;
+    if (pplib::HaveArgv(argc, argv, "-5")) fontVersion = 5;
+    if (pplib::HaveArgv(argc, argv, "-6")) fontVersion = 6;
 
     // Dateiinhalt Listen?
-    if (ppl7::HaveArgv(argc, argv, "-ll") || ppl7::HaveArgv(argc, argv, "-l")) {
-        if (ppl7::HaveArgv(argc, argv, "-ll"))
-            quelle = ppl7::GetArgv(argc, argv, "-ll");
+    if (pplib::HaveArgv(argc, argv, "-ll") || pplib::HaveArgv(argc, argv, "-l")) {
+        if (pplib::HaveArgv(argc, argv, "-ll"))
+            quelle = pplib::GetArgv(argc, argv, "-ll");
         else
-            quelle = ppl7::GetArgv(argc, argv, "-l");
-        return list(quelle, ppl7::HaveArgv(argc, argv, "-ll"));
+            quelle = pplib::GetArgv(argc, argv, "-l");
+        return list(quelle, pplib::HaveArgv(argc, argv, "-ll"));
     }
 
     if (!checkFlags(argc, argv)) return 1;
@@ -358,9 +370,7 @@ int Main::start(int argc, char** argv)
     if (!getSizes(argc, argv)) return 1;
 
     if (fontVersion == 5) {
-        // font = new CFont5Generator;
-        printf("Font5-Format wird zur Zeit nicht unterstützt.\n");
-        return 0;
+        font = new CFont5Generator;
     } else {
         font = new CFont6Generator;
     }
@@ -378,40 +388,50 @@ int Main::start(int argc, char** argv)
 int Main::work(int argc, char** argv)
 {
     // Das Quellfile wird geladen, wenn es existiert
-    if (ppl7::File::exists(target)) {
+    if (pplib::File::exists(target)) {
+        // Handelt es sich um das erwartete Font-Format?
+        if (!font->ident(target) || font->getMainVersion() != fontVersion) {
+            printf("ERROR: Zieldatei existiert, ist aber keine Font%d-Datei\n", fontVersion);
+            return 0;
+        }
+        // Aeltere Dateien dieses Tools haben die Datei-ID "UNKN" statt "FONT".
+        if (font->getID() != "FONT" && font->getID() != "UNKN") {
+            printf("ERROR: Zieldatei hat die unbekannte Datei-ID \"%s\"\n", (const char*)font->getID());
+            return 0;
+        }
         try {
             font->load(target);
         }
-        catch (const ppl7::Exception& e) {
+        catch (const pplib::Exception& e) {
             printf("ERRROR: Zieldatei existiert, scheint aber keine Font-Datei zu sein\n");
             e.print();
             return 0;
         }
     }
     try {
-        if (ppl7::HaveArgv(argc, argv, "--name")) {
-            font->setName(ppl7::GetArgv(argc, argv, "--name"));
+        if (pplib::HaveArgv(argc, argv, "--name")) {
+            font->setName(pplib::GetArgv(argc, argv, "--name"));
         }
-        if (ppl7::HaveArgv(argc, argv, "--author")) {
-            font->setAuthor(ppl7::GetArgv(argc, argv, "--author"));
+        if (pplib::HaveArgv(argc, argv, "--author")) {
+            font->setAuthor(pplib::GetArgv(argc, argv, "--author"));
         }
-        if (ppl7::HaveArgv(argc, argv, "--copy")) {
-            font->setCopyright(ppl7::GetArgv(argc, argv, "--copy"));
+        if (pplib::HaveArgv(argc, argv, "--copy")) {
+            font->setCopyright(pplib::GetArgv(argc, argv, "--copy"));
         }
     }
-    catch (const ppl7::Exception& e) {
+    catch (const pplib::Exception& e) {
         printf("ERROR: Fehler beim Setzen von Name, Author oder Copyright\n");
         e.print();
         return 0;
     }
-    if (ppl7::HaveArgv(argc, argv, "--zlib"))
-        font->setCompression(ppl7::Compression::Algo_ZLIB);
-    else if (ppl7::HaveArgv(argc, argv, "--bzip2"))
-        font->setCompression(ppl7::Compression::Algo_BZIP2);
+    if (pplib::HaveArgv(argc, argv, "--zlib"))
+        font->setCompression(pplib::Compression::Algorithm::ZLIB);
+    else if (pplib::HaveArgv(argc, argv, "--bzip2"))
+        font->setCompression(pplib::Compression::Algorithm::BZIP2);
     else
-        font->setCompression(ppl7::Compression::Algo_NONE);
+        font->setCompression(pplib::Compression::Algorithm::NONE);
 
-    if (ppl7::HaveArgv(argc, argv, "--disable-hints")) {
+    if (pplib::HaveArgv(argc, argv, "--disable-hints")) {
         font->enableHints(false);
     } else {
         font->enableHints(true);
@@ -422,7 +442,7 @@ int Main::work(int argc, char** argv)
             return 0;
         }
         // Hat unser Font einen Namen?
-        ppl7::String name = font->getName();
+        pplib::String name = font->getName();
         if (name.isEmpty() || name.size() < 2) {
             font->CopyFreeTypeName();
         }
@@ -430,7 +450,7 @@ int Main::work(int argc, char** argv)
 
     if (edit.notEmpty()) {
         // FACEs löschen?
-        if (ppl7::HaveArgv(argc, argv, "-r")) {
+        if (pplib::HaveArgv(argc, argv, "-r")) {
             for (auto it = FontSizesTodo.begin(); it != FontSizesTodo.end(); ++it) {
                 printf("Lösche Fontgröße %i\n", *it);
                 font->DeleteFace(*it, flags);
@@ -447,13 +467,13 @@ int Main::work(int argc, char** argv)
     try {
         font->save(target);
     }
-    catch (const ppl7::Exception& e) {
+    catch (const pplib::Exception& e) {
         printf("ERROR: Fehler beim Speichern der Font-Datei\n");
         e.print();
         return 0;
     }
-    ppl7::DirEntry stat = ppl7::File::statFile(target);
-    printf("Font-Datei \"%s\" erfolgreich gespeichert, Größe: %llu Bystes\n", (const char*)target, stat.Size);
+    pplib::DirEntry stat = pplib::File::statFile(target);
+    printf("Font-Datei \"%s\" erfolgreich gespeichert, Größe: %llu Bytes\n", (const char*)target, (unsigned long long)stat.Size);
     font->List();
     return 1;
 }

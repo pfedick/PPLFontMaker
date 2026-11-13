@@ -3,15 +3,21 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#include <ppl7.h>
-#include <ppl7-grafix.h>
-#include <set>
+#include <pplib/core/functions.h>
+#include <pplib/core/pfpfile.h>
+#include <pplib/exceptions.h>
+#include <pplib/grafix/color.h>
+#include <pplib/grafix/drawable.h>
+#include <pplib/types/string.h>
+#include <pplib/types/widestring.h>
+#include "version.h"
 #include <map>
+#include <set>
+#include <utility>
+#include <vector>
 
-using namespace ppl7;
+using namespace pplib;
 
-#define FM_VERSION "1.4.0"
-#define FM_RELEASEDATE "04.02.2012"
 #define FM_AUTHOR "Patrick Fedick"
 #define FM_COPYRIGHT "(c) Copyright by Patrick Fedick in 2012"
 
@@ -37,16 +43,16 @@ class CFontGeneratorCommon;
 class Main
 {
 private:
-    ppl7::String edit;
-    ppl7::String quelle;
-    ppl7::String target;
+    pplib::String edit;
+    pplib::String quelle;
+    pplib::String target;
     int flags;
     std::set<int> FontSizesTodo;
     int fontVersion;
 
     CFontGeneratorCommon* font;
 
-    int list(const ppl7::String& filename, bool withglyphs = false);
+    int list(const pplib::String& filename, bool withglyphs = false);
     int checkFlags(int argc, char** argv);
     int getSizes(int argc, char** argv);
     int getFiles(int argc, char** argv);
@@ -92,7 +98,7 @@ public:
     Font5Glyph& operator=(const Font5Glyph& other);
 };
 
-class CFontGeneratorCommon : public ppl7::PFPFile
+class CFontGeneratorCommon : public pplib::PFPFile
 {
     friend class CFont5Generator;
 
@@ -108,7 +114,7 @@ public:
     int LoadFont(const char* file);
 
     int Render(int code, FONTRENDER* render);
-    int BltGlyph(ppl7::grafix::Drawable& surface, int x, int y, FONTRENDER* glyph, ppl7::grafix::Color& c);
+    int BltGlyph(pplib::grafix::Drawable& surface, int x, int y, FONTRENDER* glyph, pplib::grafix::Color& c);
 
     void DeleteFace(int size, int flags);
     void CopyFreeTypeName();
@@ -125,9 +131,8 @@ public:
 class CFont5Generator : public CFontGeneratorCommon
 {
 private:
-    PFPChunk* fontchunk;
     int debugx, debugy;
-    ppl7::AssocArray CharRanges;
+    std::vector<std::pair<wchar_t, wchar_t>> CharRanges;
     std::map<wchar_t, Font5Glyph> Glyphs;
 
     int AddGlyph(wchar_t code, FONTRENDER* render);
@@ -139,10 +144,10 @@ public:
     virtual int AddChar(wchar_t unicode);
     virtual int Generate(int size, int flags);
 
-    virtual int LoadRequest(const char* id, int mainversion, int subversion);
     virtual void List();
     virtual void List(bool withGlyphs);
     virtual void ListGlyphs(PFPChunk* c);
+    void enableHints(bool enable) override;
 };
 
 class Font6Glyph
@@ -175,8 +180,6 @@ private:
 public:
     CFont6Generator();
     virtual ~CFont6Generator();
-
-    virtual int LoadRequest(const char* id, int mainversion, int subversion);
 
     virtual int AddCharRange(wchar_t start, wchar_t end);
     virtual int AddChar(wchar_t unicode);

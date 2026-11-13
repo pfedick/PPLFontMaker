@@ -23,7 +23,7 @@ PFP-File-Format Version 3: `pfpfile_v3.md`
 Das Projekt "pplib8", ist eine plattformübergreifende C++-Bibliothek, die auf verschiedenen Plattformen (Windows MingW64/MSys, Linux, FreeBSD) getestet wird und sowohl auf Desktop- als auch in Teilen auf Mikrocontroller-Umgebungen läuft. Die Bibliothek bietet eine Vielzahl von Funktionen und Abstraktionen, um gängige Programmieraufgaben zu vereinfachen. Sie deckt Datei- und Verzeichnisoperationen, Strings und Arrays, Zeit, Mathematik, Threads, Grafik, Sound, Datenbankzugriff und Internetkommunikation ab.
 
 pplib8 ist die neuere Version von ppl7. Sie verwendet CMake als Build-System und ist im Homeverzeichnis des Benutzers installiert.
-Siehe `~/lib64/cmake/pplib8/` für die CMake-Konfigurationsdateien von pplib8. Die Library ist weitestgehend API-kompatibel zu ppl7, weist aber einige Änderungen und Erweiterungen auf.
+Siehe `~/lib64/cmake/pplib8/` oder `~/lib/cmake/pplib8/`für die CMake-Konfigurationsdateien von pplib8. Die Library ist weitestgehend API-kompatibel zu ppl7, weist aber einige Änderungen und Erweiterungen auf.
 
 Gravierenste Ännderungen:
 - Namespace: `pplib` statt `ppl7`

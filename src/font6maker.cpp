@@ -25,20 +25,20 @@ Font6Glyph::Font6Glyph(const Font6Glyph& other)
     bitmap = NULL;
     if (other.headersize > 0) {
         header = (char*)malloc(other.headersize);
-        if (!header) throw ppl7::OutOfMemoryException();
+        if (!header) throw pplib::OutOfMemoryException();
         memcpy(header, other.header, other.headersize);
     }
     if (other.bitmapsize > 0) {
         bitmap = (char*)malloc(other.bitmapsize);
-        if (!bitmap) throw ppl7::OutOfMemoryException();
+        if (!bitmap) throw pplib::OutOfMemoryException();
         memcpy(bitmap, other.bitmap, other.bitmapsize);
     }
 }
 
 Font6Glyph& Font6Glyph::operator=(const Font6Glyph& other)
 {
-    delete (header);
-    delete (bitmap);
+    free(header);
+    free(bitmap);
     unicode = other.unicode;
     headersize = other.headersize;
     bitmapsize = other.bitmapsize;
@@ -46,12 +46,12 @@ Font6Glyph& Font6Glyph::operator=(const Font6Glyph& other)
     bitmap = NULL;
     if (other.headersize > 0) {
         header = (char*)malloc(other.headersize);
-        if (!header) throw ppl7::OutOfMemoryException();
+        if (!header) throw pplib::OutOfMemoryException();
         memcpy(header, other.header, other.headersize);
     }
     if (other.bitmapsize > 0) {
         bitmap = (char*)malloc(other.bitmapsize);
-        if (!bitmap) throw ppl7::OutOfMemoryException();
+        if (!bitmap) throw pplib::OutOfMemoryException();
         memcpy(bitmap, other.bitmap, other.bitmapsize);
     }
     return *this;
@@ -59,6 +59,7 @@ Font6Glyph& Font6Glyph::operator=(const Font6Glyph& other)
 
 CFont6Generator::CFont6Generator()
 {
+    setId("FONT");
     setVersion(6, 0);
     hintsEnabled = true;
     totalGlyphSize = 0;
@@ -111,7 +112,7 @@ int CFont6Generator::AddGlyph(wchar_t code, FONTRENDER* render)
     }
     Font6Glyph g;
     g.header = (char*)malloc(headersize);
-    if (!g.header) throw ppl7::OutOfMemoryException();
+    if (!g.header) throw pplib::OutOfMemoryException();
     g.headersize = headersize;
     g.unicode = code;
     Poke32(g.header + 0, headersize + render->buffersize);
@@ -223,18 +224,11 @@ int CFont6Generator::Generate(int fontsize, int flags)
         p += g->second.bitmapsize;
     }
     // printf ("p=%zi, bytes=%zi\n",p,bytes);
-    PFPChunk* facechunk = new PFPChunk;
-    facechunk->setName("FACE");
-    facechunk->setData(buffer, bytes);
-    addChunk(facechunk);
+    PFPChunk facechunk;
+    facechunk.setName("FACE");
+    facechunk.setData(buffer, bytes);
+    addChunk(std::move(facechunk));
     free(buffer);
-    return 1;
-}
-
-int CFont6Generator::LoadRequest(const char* id, int mainversion, int subversion)
-{
-    // Handelt es sich auch um eine Font5-Datei?
-    if (strcmp(id, "FONT") != 0 || mainversion != 6 || subversion != 0) return 0;
     return 1;
 }
 
@@ -251,8 +245,8 @@ void CFont6Generator::List()
 void CFont6Generator::List(bool withGlyphs)
 {
     const char* comp = "unkomprimiert";
-    if (this->getCompression() == 1) comp = "Zlib-Komprimierung";
-    if (this->getCompression() == 2) comp = "Bzip2-Komprimierung";
+    if (this->getCompression() == pplib::Compression::Algorithm::ZLIB) comp = "Zlib-Komprimierung";
+    if (this->getCompression() == pplib::Compression::Algorithm::BZIP2) comp = "Bzip2-Komprimierung";
     printf("PFP-File Version 3, %s Version %i.%i, %s\n", (const char*)getID(), getMainVersion(), getSubVersion(), comp);
     String tmp;
     if ((tmp = getName()).notEmpty()) printf("Name:        %s\n", (const char*)tmp);
@@ -260,13 +254,13 @@ void CFont6Generator::List(bool withGlyphs)
     if ((tmp = getCopyright()).notEmpty()) printf("Copyright:   %s\n", (const char*)tmp);
     if ((tmp = getDescription()).notEmpty()) printf("Description: %s\n", (const char*)tmp);
     // if ((tmp = getName()).notEmpty()) printf("Size:        %llu Bytes\n", (const char*)tmp);
-    ppl7::PFPFile::Iterator it;
+    pplib::PFPFile::Iterator it;
     reset(it);
     PFPChunk* c;
     char* b;
     int flags;
     int pixelformat;
-    ppl7::String s;
+    pplib::String s;
     while ((c = (PFPChunk*)getNext(it))) {
         if (c->name() == "FACE") {
             b = (char*)c->data();
@@ -303,8 +297,8 @@ void CFont6Generator::ListGlyphs(PFPChunk* c)
     char* b = (char*)c->data() + 12;
     uint32_t num = 0;
     while (1) {
-        uint32_t chunksize = ppl7::Peek32(b);
-        uint16_t unicode = ppl7::Peek16(b + 4);
+        uint32_t chunksize = pplib::Peek32(b);
+        uint16_t unicode = pplib::Peek16(b + 4);
         if (chunksize == 0 || unicode == 0) break;
         printf("%4d: Unicode: %5d, Chunksize: %5d\n", num, unicode, chunksize);
         num++;

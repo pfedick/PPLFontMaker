@@ -258,7 +258,7 @@ int CFontGeneratorCommon::Render(int code, FONTRENDER* render)
     return 1;
 }
 
-int CFontGeneratorCommon::BltGlyph(ppl7::grafix::Drawable& surface, int x, int y, FONTRENDER* glyph, ppl7::grafix::Color& c)
+int CFontGeneratorCommon::BltGlyph(pplib::grafix::Drawable& surface, int x, int y, FONTRENDER* glyph, pplib::grafix::Color& c)
 {
     char* buffer = glyph->buffer;
     uint8_t w;
@@ -286,14 +286,14 @@ int CFontGeneratorCommon::BltGlyph(ppl7::grafix::Drawable& surface, int x, int y
 
 void CFontGeneratorCommon::DeleteFace(int size, int flags)
 {
-    ppl7::PFPFile::Iterator it;
+    pplib::PFPFile::Iterator it;
     PFPChunk* c;
     char* b;
     int fflags;
     // printf ("DeleteFace, size=%i, flags=%i\n",size,flags);
     while ((c = (PFPChunk*)findNextChunk(it, "FACE"))) {
         b = (char*)c->data();
-        fflags = ppl7::Peek8(b) & 7;
+        fflags = pplib::Peek8(b) & 7;
         // printf ("Face size=%i, flags=%i\n",peek16(b+2),fflags);
         if (fflags == flags && (int)Peek16(b + 2) == size) {
             deleteChunk(c);
