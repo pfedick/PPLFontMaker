@@ -8,12 +8,9 @@
 - Die zu rendernden Zeichen können ausgewählt werden
 
 ## Dateiformat
-Font 6: [Font-Format Version 6](font6.md)
-Font 5: [Font-Format Version 5](font5.md)
-PFP-File-Format Version 3: [PFP-File-Format Version 3](pfpfile_v3.md)
-
-  
-
+Font Format Version 6: `font6.md`
+Font Format Version 5: `font5.md`
+PFP-File-Format Version 3: `pfpfile_v3.md`
 
 
 ## Migration
@@ -35,6 +32,7 @@ Gravierenste Ännderungen:
 - File-Klasse: map()-Methoden wurden überarbeitet (tryMap) 
 - Audio-Decoder wurde leicht angepasst, getSamples wirft nicht mehr, sondern gibt auch im Fehlerfall 0 zurück.
 - Encoder ist größtenteils übernommen worden, ist aber noch ungetestet und könnte Fehler enthalten.
+- Die Klasse grafix::Rect wurde komplett überarbeitet und verwendet jetzt als Werte die Koordinaten der linken oberen Ecke, sowie die Breite und Höhe des Rechtecks und nicht mehr die Koordinaten der linken oberen und rechten unteren Ecke.
 
 
 
