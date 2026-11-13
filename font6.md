@@ -1,12 +1,17 @@
 # Format PFP Font, Version 6
 
-Die Version 6 ist angelehnt an Version 5 und verwendet als Basisformat das [PFP-File-Format Version 3](#) mit seinen Chunks. Die Wesentlichen Unterschiede zu Version 5 sind:
+Die Version 6 ist angelehnt an Version 5 und verwendet als Basisformat das [PFP-File-Format Version 3](pfpfile_v3.md) mit seinen Chunks. Die Wesentlichen Unterschiede zu Version 5 sind:
 
 - Es gibt keine Sprungtabellen mehr
 - Die Glyphs für die vorhandenen Zeichen liegen hintereinander in Chunks, die Applikation muss sich selbst merken, wo ein Glyph zu finden ist (z.B. innerhalb eines binären Baumes)
 - Die Glyphs unterstützen Hints, also die Information, ob eine bestimmte Zeichenkombination näher zueinander dargestellt werden können oder mehr Platz brauchen. Beispiel: "To" - das "o" kann in diesem Fall nach links unter den T-Strich gerückt werden. Bei "Tö" geht das aber ja nach Font nicht.
 
 Das File trägt als ID "FONT", Hauptversion 6, Unterversion 0. Eine Datei enthält in der Regel immer nur einen Font (z.B. Liberation Sans), kann aber beliebig viele Faces enthalten, die sich durch Style (Fett, Kursiv, Antialiased) und Pixelgröße unterscheiden. Jedes Face ist in einem eigenen Chunk untergebracht, der den Namen "FACE" trägt.
+
+Alle Integer-Werte sind im Little-Endian-Format gespeichert.
+
+## PFP-File-Format Version 3
+Siehe [PFP-File-Format Version 3](pfpfile_v3.md)
 
 ## Header
 
