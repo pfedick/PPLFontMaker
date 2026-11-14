@@ -1,6 +1,25 @@
 History PPLFontMaker
 ====================
 
+Version 1.6.0 vom 14.11.2026
+  - Umstellung von Autoconf auf CMake und von PPL7 auf PPL8 (C++20)
+  - "-r" loescht die Faces, die zu Groesse, Pixelformat *und* Stil der
+    gesetzten Flags passen (vorher nur Groesse und ein unvollstaendiges
+    Flag-Byte). Beim Generieren wird ein vorhandenes Face jetzt auch bei
+    "--genbold" ersetzt statt zusaetzlich abgelegt
+  - "--aa" entfernt; es gibt nur noch --aa2, --aa4, --aa8, --mono1 und
+    --mono8, die jetzt auch gegeneinander geprueft werden
+  - font5.md beschreibt das tatsaechlich vom Generator geschriebene Format
+  - Makefile als CMake-Wrapper (release, debug, asan, test, coverage)
+  - Unittests (GoogleTest) ergaenzen, die die erzeugten Font-Dateien von aussen
+    ueber das Binary pruefen (PFP-Container, FACE-Aufbau, Font5-Sprungtabellen,
+    Geloeschen/Ersetzen von Faces, Fehlermeldungen)
+  - Heap-Buffer-Overflow behoben: Beim Kopieren eines Font5-Glyphs wurde die
+    Bitmap einen 10 Byte zu gross kopiert, weil "size" den Glyph-Header mitzaehlt
+  - memcpy() mit NULL-Zeiger und Groesse 0 beim Schreiben leerer Bitmaps
+    (z.B. Blank) vermieden
+  - Speicherleck im Fehlerpfad einer ungueltigen -c-Angabe behoben
+
 Version 1.5.0 vom 05.04.2026
   - Portierung zu PPL7
   

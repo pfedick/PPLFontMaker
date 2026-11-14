@@ -19,7 +19,7 @@
 using namespace pplib;
 
 #define FM_AUTHOR "Patrick Fedick"
-#define FM_COPYRIGHT "(c) Copyright by Patrick Fedick in 2012"
+#define FM_COPYRIGHT "(c) Copyright by Patrick Fedick in 2026"
 
 namespace FONTFLAGS
 {
@@ -37,6 +37,33 @@ enum
     AA4 = 0x00000200
 };
 } // namespace FONTFLAGS
+
+// Das Font5- und Font6-Format kennt nur Zeichencodes bis U+FFFF
+constexpr wchar_t FM_MAX_UNICODE = 0xFFFF;
+
+// Umrechnung der Commandline-Flags in die Werte, die im FACE-Header stehen.
+
+// Stil-Flagbyte: Bit 0 Antialiasing, Bit 1 fett, Bit 2 kursiv. Das Hints-Bit
+// (Bit 3), das Font6 beim Schreiben setzt, wird hier nicht beruecksichtigt.
+inline int FaceStyleFlag(int flags)
+{
+    int f = 0;
+    if (flags & FONTFLAGS::ANTIALIAS) f |= 1;
+    if (flags & FONTFLAGS::ISBOLD) f |= 2;
+    if (flags & FONTFLAGS::GENERATEBOLD) f |= 2;
+    if (flags & FONTFLAGS::ISITALIC) f |= 4;
+    return f;
+}
+
+// Pixelformat laut FACE-Header: 1 Mono8, 2 Mono1, 3 AA8, 4 AA2, 5 AA4
+inline int FacePixelFormat(int flags)
+{
+    if (flags & FONTFLAGS::AA2) return 4;
+    if (flags & FONTFLAGS::AA4) return 5;
+    if (flags & FONTFLAGS::ANTIALIAS) return 3;
+    if (flags & FONTFLAGS::MONO1) return 2;
+    return 1;
+}
 
 class CFontGeneratorCommon;
 

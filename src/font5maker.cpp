@@ -4,11 +4,12 @@
 Font5Glyph::Font5Glyph()
 {
     bitmap = NULL;
-    memset(header, 0, 8);
+    memset(header, 0, sizeof(header));
     size = 0;
     unicode = 0;
 }
 
+// size enthaelt den 10 Byte grossen Glyph-Header mit, bitmap nur die Bitmap-Daten
 Font5Glyph::Font5Glyph(const Font5Glyph& other)
 {
     unicode = other.unicode;
@@ -16,9 +17,10 @@ Font5Glyph::Font5Glyph(const Font5Glyph& other)
     bitmap = NULL;
     size = other.size;
     if (other.bitmap) {
-        bitmap = (char*)malloc(size);
+        size_t datalen = (size >= 10) ? size - 10 : 0;
+        bitmap = (char*)malloc(datalen);
         if (!bitmap) throw pplib::OutOfMemoryException();
-        memcpy(bitmap, other.bitmap, size);
+        memcpy(bitmap, other.bitmap, datalen);
     }
 }
 
@@ -29,15 +31,17 @@ Font5Glyph::~Font5Glyph()
 
 Font5Glyph& Font5Glyph::operator=(const Font5Glyph& other)
 {
+    if (this == &other) return *this;
     if (bitmap) free(bitmap);
     unicode = other.unicode;
     memcpy(header, other.header, 10);
     bitmap = NULL;
     size = other.size;
     if (other.bitmap) {
-        bitmap = (char*)malloc(size);
+        size_t datalen = (size >= 10) ? size - 10 : 0;
+        bitmap = (char*)malloc(datalen);
         if (!bitmap) throw pplib::OutOfMemoryException();
-        memcpy(bitmap, other.bitmap, size);
+        memcpy(bitmap, other.bitmap, datalen);
     }
     return *this;
 }
@@ -100,7 +104,7 @@ int CFont5Generator::Generate(int fontsize, int flags)
     // FT_Set_Char_Size(face,0,fontsize*64,72,72);
     FT_Set_Pixel_Sizes(face, 0, fontsize + 2);
     FONTRENDER glyph;
-    DeleteFace(fontsize, flags & 7);
+    DeleteFace(fontsize, flags);
     glyph.buffer = NULL;
     glyph.flags = flags;
 
@@ -115,12 +119,12 @@ int CFont5Generator::Generate(int fontsize, int flags)
         numJumpTables++;
         start = range.first;
         end = range.second;
-        for (int i = start; i <= end; i++) {
+        for (int code = start; code <= end; code++) {
             numGlyphs++;
-            if (Render(i, &glyph)) {
+            if (Render(code, &glyph)) {
                 if (glyph.bearingy > maxbearingy) maxbearingy = glyph.bearingy;
                 if (0 - glyph.bearingy + glyph.height > maxunderlength) maxunderlength = 0 - glyph.bearingy + glyph.height;
-                if (!AddGlyph(i, &glyph)) {
+                if (!AddGlyph(code, &glyph)) {
                     return 0;
                 }
                 size += glyph.buffersize + 10;
@@ -128,6 +132,11 @@ int CFont5Generator::Generate(int fontsize, int flags)
         }
     }
     maxheight = maxunderlength + maxbearingy + 1;
+    if (Glyphs.empty()) {
+        printf("WARNUNG: Groesse %i enthaelt keine Glyphen, das Face wird nicht geschrieben\n", fontsize);
+        Glyphs.clear();
+        return 1;
+    }
     // Speicherbedarf berechnen:
     int bytes = 12;             // Header des FACE
     bytes += numJumpTables * 8; // Anzahl Sprungtabellen
@@ -141,22 +150,8 @@ int CFont5Generator::Generate(int fontsize, int flags)
     }
     memset(buffer, 0, bytes);
     // Zuerst schreiben wir den Header
-    int f = 0;
-    if (flags & FONTFLAGS::ANTIALIAS) f |= 1;
-    if (flags & FONTFLAGS::ISBOLD) f |= 2;
-    if (flags & FONTFLAGS::GENERATEBOLD) f |= 2;
-    if (flags & FONTFLAGS::ISITALIC) f |= 4;
-    Poke8(buffer + 0, f);
-    if (flags & FONTFLAGS::AA2)
-        Poke8(buffer + 1, 4);
-    else if (flags & FONTFLAGS::AA4)
-        Poke8(buffer + 1, 5);
-    else if (flags & FONTFLAGS::ANTIALIAS)
-        Poke8(buffer + 1, 3);
-    else if (flags & FONTFLAGS::MONO1)
-        Poke8(buffer + 1, 2);
-    else
-        Poke8(buffer + 1, 1);
+    Poke8(buffer + 0, FaceStyleFlag(flags));
+    Poke8(buffer + 1, FacePixelFormat(flags));
     Poke16(buffer + 2, fontsize);
     Poke16(buffer + 4, maxbearingy);
     Poke16(buffer + 6, maxheight);
@@ -175,13 +170,16 @@ int CFont5Generator::Generate(int fontsize, int flags)
         Poke16(jumpindex + 2, end);
         Poke32(jumpindex + 4, jump - buffer);
         jumpindex += 8;
-        for (int i = start; i <= end; i++) {
-            auto found = Glyphs.find(i);
+        for (int code = start; code <= end; code++) {
+            auto found = Glyphs.find(code);
             if (found != Glyphs.end()) {
                 g = &found->second;
                 Poke32(jump, p);
                 memcpy(b, g->header, 10);
-                memcpy(b + 10, g->bitmap, g->size - 10);
+                // Leere Bitmaps (z.B. Blank) haben einen NULL-Zeiger: memcpy nicht mit 0 Groesse aufrufen
+                if (g->size > 10) {
+                    memcpy(b + 10, g->bitmap, g->size - 10);
+                }
                 b += g->size;
                 p += g->size;
             }

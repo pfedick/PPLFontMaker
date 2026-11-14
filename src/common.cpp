@@ -284,18 +284,19 @@ int CFontGeneratorCommon::BltGlyph(pplib::grafix::Drawable& surface, int x, int 
     return 1;
 }
 
+// Loschen alle Faces, die zu Groesse, Pixelformat und Stil der angegebenen
+// Commandline-Flags passen. Das Hints-Bit im Flag-Byte bleibt aussen vor.
 void CFontGeneratorCommon::DeleteFace(int size, int flags)
 {
     pplib::PFPFile::Iterator it;
     PFPChunk* c;
     char* b;
-    int fflags;
-    // printf ("DeleteFace, size=%i, flags=%i\n",size,flags);
+    int style = FaceStyleFlag(flags);
+    int format = FacePixelFormat(flags);
     while ((c = (PFPChunk*)findNextChunk(it, "FACE"))) {
         b = (char*)c->data();
-        fflags = pplib::Peek8(b) & 7;
-        // printf ("Face size=%i, flags=%i\n",peek16(b+2),fflags);
-        if (fflags == flags && (int)Peek16(b + 2) == size) {
+        if (!b) continue;
+        if ((pplib::Peek8(b) & 7) == style && pplib::Peek8(b + 1) == format && (int)Peek16(b + 2) == size) {
             deleteChunk(c);
             reset(it);
         }

@@ -149,7 +149,7 @@ int CFont6Generator::Generate(int fontsize, int flags)
     // FT_Set_Char_Size(face,0,fontsize*64,72,72);
     FT_Set_Pixel_Sizes(face, 0, fontsize + 2);
     FONTRENDER glyph;
-    DeleteFace(fontsize, flags & 7);
+    DeleteFace(fontsize, flags);
     glyph.buffer = NULL;
     glyph.flags = flags;
     Glyphs.clear();
@@ -174,6 +174,10 @@ int CFont6Generator::Generate(int fontsize, int flags)
         }
     }
     maxheight = maxunderlength + maxbearingy + 1;
+    if (Glyphs.empty()) {
+        printf("WARNUNG: Groesse %i enthaelt keine Glyphen, das Face wird nicht geschrieben\n", fontsize);
+        return 1;
+    }
     // Speicherbedarf berechnen:
     size_t bytes = 12;       // Header des FACE
     bytes += totalGlyphSize; // Größe der Glyphs
@@ -187,25 +191,12 @@ int CFont6Generator::Generate(int fontsize, int flags)
     }
     memset(buffer, 0, bytes);
     // Zuerst schreiben wir den Header
-    int f = 0;
-    if (flags & FONTFLAGS::ANTIALIAS) f |= 1;
-    if (flags & FONTFLAGS::ISBOLD) f |= 2;
-    if (flags & FONTFLAGS::GENERATEBOLD) f |= 2;
-    if (flags & FONTFLAGS::ISITALIC) f |= 4;
+    int f = FaceStyleFlag(flags);
     if (FT_HAS_KERNING(face) && hintsEnabled) {
         f |= 8;
     }
     Poke8(buffer + 0, f);
-    if (flags & FONTFLAGS::AA2)
-        Poke8(buffer + 1, 4);
-    else if (flags & FONTFLAGS::AA4)
-        Poke8(buffer + 1, 5);
-    else if (flags & FONTFLAGS::ANTIALIAS)
-        Poke8(buffer + 1, 3);
-    else if (flags & FONTFLAGS::MONO1)
-        Poke8(buffer + 1, 2);
-    else
-        Poke8(buffer + 1, 1);
+    Poke8(buffer + 1, FacePixelFormat(flags));
     Poke16(buffer + 2, fontsize);
     Poke16(buffer + 4, maxbearingy);
     Poke16(buffer + 6, maxheight);
@@ -220,7 +211,10 @@ int CFont6Generator::Generate(int fontsize, int flags)
         // und die Daten korrekt kopiert werden.
         memcpy(buffer + p, g->second.header, g->second.headersize);
         p += g->second.headersize;
-        memcpy(buffer + p, g->second.bitmap, g->second.bitmapsize);
+        // Leere Bitmaps (z.B. Blank) haben einen NULL-Zeiger: memcpy nicht mit 0 Groesse aufrufen
+        if (g->second.bitmapsize > 0) {
+            memcpy(buffer + p, g->second.bitmap, g->second.bitmapsize);
+        }
         p += g->second.bitmapsize;
     }
     // printf ("p=%zi, bytes=%zi\n",p,bytes);
@@ -295,13 +289,15 @@ void CFont6Generator::List(bool withGlyphs)
 void CFont6Generator::ListGlyphs(PFPChunk* c)
 {
     char* b = (char*)c->data() + 12;
-    uint32_t num = 0;
-    while (1) {
+    char* end = (char*)c->data() + c->size();
+    // Font6-Glyphs haben kein absolutes Ende, die Anzahl steht im FACE-Header bei Byte 10
+    uint32_t numglyphs = pplib::Peek16((char*)c->data() + 10);
+    for (uint32_t num = 0; num < numglyphs; num++) {
+        if (b + 8 > end) break;
         uint32_t chunksize = pplib::Peek32(b);
         uint16_t unicode = pplib::Peek16(b + 4);
-        if (chunksize == 0 || unicode == 0) break;
+        if (chunksize < 8 || unicode == 0 || b + chunksize > end) break;
         printf("%4d: Unicode: %5d, Chunksize: %5d\n", num, unicode, chunksize);
-        num++;
         b += chunksize;
     }
 

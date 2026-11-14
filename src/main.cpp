@@ -69,7 +69,6 @@ void Main::help()
            "  -5          PPL-Font Version 5 generieren\n"
            "  -6          PPL-Font Version 6 generieren (=Default)\n"
            "Flags:\n"
-           "  --aa        Antialiased Fonts erstellen\n"
            "  --aa2       Antialiased Fonts mit 2 Bit pro Pixel\n"
            "  --aa4       Antialiased Fonts mit 4 Bit pro Pixel\n"
            "  --aa8       Antialiased Fonts mit 8 Bit pro Pixel (default)\n"
@@ -95,7 +94,8 @@ void Main::help()
            "  -e FILE     File editieren. Mit dieser Option kann Name, Author, etc.\n"
            "              und die Komprimierung geändert werden, sowie in Kombination\n"
            "              mit -r Fonts gelöscht werden.\n"
-           "  -r          Fonts mit der angegebenen Größe und Flags werden gelöscht\n"
+           "  -r          Fonts mit der angegebenen Größe, dem Pixelformat und\n"
+           "              Stil der gesetzten Flags werden gelöscht\n"
            "\n"
            "Enthält die Zieldatei bereits identische FACEs, werden diese überschrieben."
            "\n");
@@ -144,13 +144,15 @@ int Main::list(const pplib::String& filename, bool withglyphs)
 
 int Main::checkFlags(int argc, char** argv)
 {
-    flags = 0;
-    // Die Flags --aa, --mono1 und --mono8 können nicht gemeinsam verwendet werden
-    if (pplib::HaveArgv(argc, argv, "--aa")) flags++;
-    if (pplib::HaveArgv(argc, argv, "--mono1")) flags++;
-    if (pplib::HaveArgv(argc, argv, "--mono8")) flags++;
-    if (flags > 1) {
-        printf("Die Flags \"--aa\", \"--mono1\" und \"--mono8\" können nicht gemeinsam verwendet werden\n");
+    // Die Format-Flags schliessen sich gegenseitig aus
+    int formats = 0;
+    if (pplib::HaveArgv(argc, argv, "--aa2")) formats++;
+    if (pplib::HaveArgv(argc, argv, "--aa4")) formats++;
+    if (pplib::HaveArgv(argc, argv, "--aa8")) formats++;
+    if (pplib::HaveArgv(argc, argv, "--mono1")) formats++;
+    if (pplib::HaveArgv(argc, argv, "--mono8")) formats++;
+    if (formats > 1) {
+        printf("Die Flags \"--aa2\", \"--aa4\", \"--aa8\", \"--mono1\" und \"--mono8\" können nicht gemeinsam verwendet werden\n");
         return 0;
     }
 
@@ -159,7 +161,7 @@ int Main::checkFlags(int argc, char** argv)
         flags |= FONTFLAGS::ANTIALIAS | FONTFLAGS::AA2;
     else if (pplib::HaveArgv(argc, argv, "--aa4"))
         flags |= FONTFLAGS::ANTIALIAS | FONTFLAGS::AA4;
-    else if (pplib::HaveArgv(argc, argv, "--aa"))
+    else if (pplib::HaveArgv(argc, argv, "--aa8"))
         flags |= FONTFLAGS::ANTIALIAS;
     else if (pplib::HaveArgv(argc, argv, "--mono8"))
         flags |= FONTFLAGS::MONO8;
@@ -180,32 +182,36 @@ int Main::checkFlags(int argc, char** argv)
 
 int Main::getSizes(int argc, char** argv)
 {
-    if ((!edit) && (!(pplib::HaveArgv(argc, argv, "-s")))) {
+    if (edit.isEmpty() && (!pplib::HaveArgv(argc, argv, "-s"))) {
         printf("Fontsize fehlt\n");
         return 0;
     }
     int start, end;
     pplib::String Size = pplib::GetArgv(argc, argv, "-s");
-    pplib::String Tmp;
-    std::vector<String> Matches;
 
-    if (pplib::RegEx::capture("/^([0-9]+)\\-([0-9]+)$", Size, Matches)) { // Range
-        start = Matches[1].toInt();
-        end = Matches[2].toInt();
-        if (end < start) {
-            start = Matches[2].toInt();
-            end = Matches[1].toInt();
-        }
-        for (int i = start; i <= end; i++) {
-            FontSizesTodo.insert(i);
-        }
-    } else if (Size.instr(",", 0) >= 0) { // Liste
+    // "-s" kann eine Einzelgroesse, eine Liste ("12,14") oder Bereiche ("12-14")
+    // enthalten, beides auch gemischt ("8,10-13")
+    if (Size.notEmpty()) {
         pplib::Array a(Size, ",");
         for (auto it = a.begin(); it != a.end(); ++it) {
-            FontSizesTodo.insert(it->toInt());
+            std::vector<String> Matches;
+            if (pplib::RegEx::capture("/^([0-9]+)\\-([0-9]+)$/", *it, Matches)) { // Bereich
+                start = Matches[1].toInt();
+                end = Matches[2].toInt();
+                if (end < start) {
+                    start = Matches[2].toInt();
+                    end = Matches[1].toInt();
+                }
+                for (int fontsize = start; fontsize <= end; fontsize++) {
+                    FontSizesTodo.insert(fontsize);
+                }
+            } else if (pplib::RegEx::capture("/^[0-9]+$/", *it, Matches)) { // Einzelgroesse
+                FontSizesTodo.insert(it->toInt());
+            } else {
+                printf("Fontgroesse wurde falsch angegeben: %s\n", (const char*) *it);
+                return 0;
+            }
         }
-    } else { // Einzeln
-        FontSizesTodo.insert(Size.toInt());
     }
     if (FontSizesTodo.size() == 0) {
         printf("Keine Fontgroessen angegeben\n");
@@ -265,9 +271,17 @@ int Main::getChars(int argc, char** argv)
                     start = Matches[2].toInt();
                     end = Matches[1].toInt();
                 }
+                if (end > FM_MAX_UNICODE) {
+                    printf("ERROR: Zeichencodes über U+FFFF (%i) unterstützt das Fontformat nicht\n", (int) FM_MAX_UNICODE);
+                    return 0;
+                }
                 font->AddCharRange(start, end);
             } else if (pplib::RegEx::capture("/^([0-9]+)$/", Size, Matches)) { // Einzelnes Zeichen
                 start = Matches[1].toInt();
+                if (start > FM_MAX_UNICODE) {
+                    printf("ERROR: Zeichencodes über U+FFFF (%i) unterstützt das Fontformat nicht\n", (int) FM_MAX_UNICODE);
+                    return 0;
+                }
                 font->AddChar(start);
             } else {
                 printf("Unicode-Bereich wurde falsch angegeben\n");
@@ -375,7 +389,10 @@ int Main::start(int argc, char** argv)
         font = new CFont6Generator;
     }
 
-    if (!getChars(argc, argv)) return 1;
+    if (!getChars(argc, argv)) {
+        delete font;
+        return 1;
+    }
 
     if (!work(argc, argv)) {
         delete font;

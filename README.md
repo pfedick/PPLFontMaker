@@ -28,4 +28,15 @@ ist bereits voreingestellt. Alternativ explizit angeben:
 cmake -S . -B build -DCMAKE_PREFIX_PATH=/pfad/zu/pplib8-installation
 ```
 
+Ein Makefile als Wrapper bildet CMake pro Build-Variante in einem eigenen
+Build-Ordner ab, so dass release, debug und asan nebeneinander existieren:
+
+```sh
+make release                       # build/release
+make debug                         # build/debug
+make asan APP_ARGS="-q a.ttf -t test.fnt6 -6 --aa8 -s 12"   # build/asan + Sanitizer-Report
+make test                          # Unittests (GoogleTest)
+make coverage                      # Unittests mit Coverage-Auswertung (gcovr)
+```
+
   

@@ -1,178 +1,121 @@
 # Format PFP Font, Version 5
 
-Die Version 5 verwendet als Basisformat das [PFP-File-Format Version 2](#) mit seinem Header. Die Dateien tragen die Endung `*.fnt5`. Eine Datei enthält in der Regel immer nur einen Font (z.B. Liberation Sans), kann aber beliebig viele Faces enthalten, die sich durch Style (Fett, Kursiv, Antialiased) und Pixelgröße unterscheiden.
+Die Version 5 verwendet als Basisformat das [PFP-File-Format Version 3](pfpfile_v3.md) mit seinen Chunks. Die Dateien tragen die Endung `*.fnt5`. Das File trägt als ID "FONT", Hauptversion 5, Unterversion 0. Eine Datei enthält in der Regel immer nur einen Font (z.B. Arial), kann aber beliebig viele Faces enthalten, die sich durch Style (Fett, Kursiv, Antialiased) und Pixelgröße unterscheiden. Jedes Face ist in einem eigenen Chunk untergebracht, der den Namen "FACE" trägt.
 
-Das File trägt als ID "FONT", Hauptversion 5, Unterversion 0.
+Alle Integer-Werte sind im Little-Endian-Format gespeichert.
 
-## PFP-Header
+## Header
 
-Jede Datei beginnt mit dem 40 Byte großen PFP-Header:
+Jedes FACE beginnt mit einem 12 Byte großen Header:
 
 ```text
-Byte  0: "PFP-File"                                     (8 Byte)
-Byte  8: PFP-File-Version (2)                           (1 Byte)
-Byte  9: Laenge des PFP-Header (40)                     (1 Byte)
-Byte 10: File-ID ("FONT")                               (4 Byte)
-Byte 14: Unterversion (0)                               (1 Byte)
-Byte 15: Hauptversion (5)                               (1 Byte)
-Byte 16: Zeiger auf Name                                (2 Byte)
-Byte 18: Zeiger auf Autor                               (2 Byte)
-Byte 20: Erstelldatum                                   (4 Byte)
-Byte 24: Erstellzeit in Sekunden                        (4 Byte)
-Byte 28: Datum letzte Aenderung                         (4 Byte)
-Byte 32: Zeit letzte Aenderung in Sekunden              (4 Byte)
-Byte 36: Komprimierung                                  (2 Byte)
+Byte 0:  Flags                                        (1 Byte)
+Byte 1:  Pixelformat                                  (1 Byte)
+Byte 2:  Size (Fontgröße in Pixel)                    (2 Byte)
+Byte 4:  MaxBearingY                                  (2 Byte)
+Byte 6:  MaxHeight                                    (2 Byte)
+Byte 8:  Position Underscore                          (2 Byte)
+Byte 10: Anzahl Sprungtabellen                        (2 Byte)
 ```
 
 ### Beschreibung:
 
-- **PFP-File-Version**
-  Versionsnummer des PFP-Basisformats. Für Font 5 ist das die Version 2.
-- **Laenge des PFP-Header**
-  Länge des Headers in Bytes, bei Version 2 konstant 40.
-- **File-ID**
-  Kennung des Dateityps, hier immer "FONT".
-- **Unterversion / Hauptversion**
-  Versionsnummer des Font-Formats, hier 5.0.
-- **Zeiger auf Name / Zeiger auf Autor**
-  Offset der zugehörigen 0-terminierten Zeichenketten.
-- **Erstelldatum / Erstellzeit**
-  Datum und Zeit (Sekunden seit Mitternacht) der Erstellung.
-- **Datum letzte Aenderung / Zeit letzte Aenderung**
-  Datum und Zeit der letzten Änderung.
-- **Komprimierung**
-  Verfahren der ggf. verwendeten Komprimierung, 0 bei unkomprimierten Files.
-
-Alle weiteren Adressen und Pointer sind relativ zum Start des Font-Headers (also ab Byte 40) zu sehen!
-
-## Font-Header
-
-Direkt nach dem PFP-Header folgt der Font-Header:
-
-```text
-Byte 40 (0):  Anzahl Fonts                           (2 Byte)
-Byte 42 (2):  Pointer auf Font-Index                 (2 Byte)
-Byte 44 (4):  Name + 0-Byte
-              dann Autor + 0-Byte
-              dann Font-Index
-```
-
-### Beschreibung:
-
-- **Anzahl Fonts**
-  Anzahl der in der Datei enthaltenen Faces.
-- **Pointer auf Font-Index**
-  Offset zum Font-Index, der genau wie die Namen direkt an den Header anschließt.
-
-## Font-Index
-
-Der Font-Index enthält pro Face genau drei Einträge:
-
-```text
-Byte 0: Size                                         (1 Byte)
-Byte 1: Flags                                        (1 Byte)
-Byte 2: Chunk-Address                                (4 Byte)
-```
-
-### Beschreibung:
-
-- **Size**
-  Größe des Faces in Pixel.
 - **Flags**
   Folgende Flags sind definiert:
   ```text
-  Bit 0: Font ist fett (bold)
-  Bit 1: Font ist kursiv (italic)
-  Bit 2: Font benutzt Antialiasing
-  Bit 3: Font hat Kontur (outline)
-  Bit 4: Font hat Schatten (shadow)
+  Bit 0: Font benutzt Antialiasing
+  Bit 1: Font ist fett (bold)
+  Bit 2: Font ist kursiv (italic)
   ```
-- **Chunk-Address**
-  Offset des Font-Chunks, in dem alle Daten dieses Faces liegen.
+- **Pixelformat**
+  ```text
+  0 = undefiniert
+  1 = Monochrom, 8 Bit Pro Pixel (1 Byte)
+  2 = Monochrom, 1 Bit pro Pixel
+  3 = Antialiased, 8 Bit pro Pixel (1 Byte) = 256 Graustufen
+  4 = Antialiased, 2 Bit pro Pixel = 4 Graustufen
+  5 = Antialiased, 4 Bit pro Pixel = 16 Graustufen
+  ```
+- **Size**
+  Größe der Fonts
+- **MaxBearingY**
+  Dieser positive Wert gibt an, wieviele Pixel nach oben der größte Glyph abweicht. Da Font5-Fonts immer von einer Grundlinie aus gezeichnet werden, kann man mit diesem Wert den höchsten Punkt im Font-Face ermitteln, um z.B. statt von der Grundlinie aus von oben aus die Fonts abzubilden (Align=Top)
+- **MaxHeight**
+  Dieser Wert gibt die maximale Höhe der Glyphs an und gleichzeitig die Anzahl Pixel, die bei einem Zeilenumbruch auf der Y-Achse dazuaddiert werden müssen. Aus der Differenz "MaxHeight-MaxBearingY" kann man außerdem den tiefsten Punkt im Fontface errechnen, für den Fall dass man die Fonts von unten aus abbilden möchte (Align=Bottom).
+- **Position Underscore**
+- **Anzahl Sprungtabellen**
+  Dieser Wert gibt an, wieviele Sprungtabellen im Face enthalten sind.
 
-## Font-Chunk
+## Sprungtabellen
 
-Alle Pointer innerhalb des Chunks sind relativ zum Anfang des Font-Chunks zu sehen!
+Das Font5-Format sieht vor, dass es mehrere Sprungtabellen geben kann. Dadurch ist es möglich, selektiv nur die Fonts in das File einzubinden, die man tatsächlich benötigt.
 
 ```text
-Byte  0: Pointer auf Char-Tabelle                    (2 Byte)
-Byte  2: Pointer auf Farbtabelle (0 bei Monochrom)   (2 Byte)
-Byte  4: Hoehe der Fonts                             (2 Byte)
-Byte  6: Grundlinie                                  (2 Byte)
-Byte  8: Abstand zwischen Buchstaben                 (1 Byte)
-Byte  9: Abstand fuer Space                           (1 Byte)
-Byte 10: Maximale Breite der Buchstaben              (2 Byte)
-Byte 12: Minimale Breite der Buchstaben              (2 Byte)
-Byte 14: Durchschnittliche Breite der Buchstaben     (2 Byte)
-Byte 16: Anzahl Farben                               (1 Byte)
-Byte 17: Bits pro Pixel bei Anti Aliased Fonts       (1 Byte)
+Byte 0:  Start Character in Tabelle (UNICODE)         (2 Byte)
+Byte 2:  End Character in Tabelle (UNICODE)           (2 Byte)
+Byte 4:  Pointer auf Beginn der Sprungtabelle         (4 Byte)
 ```
 
 ### Beschreibung:
 
-- **Pointer auf Char-Tabelle**
-  Offset der Zeichentabelle. Diese bildet ISO-8859-15 ab und besteht aus 16 Byte pro Zeichen. Sie beginnt an einer durch 4 teilbaren Adresse.
-- **Pointer auf Farbtabelle**
-  Offset der Farbtabelle, 0 bei monochromen Fonts.
-- **Hoehe der Fonts**
-  Höhe aller Glyphs des Faces in Pixel.
-- **Grundlinie**
-  Position der Grundlinie innerhalb der Glyph-Height.
-- **Abstand zwischen Buchstaben**
-  Standardabstand, der beim Darstellen zwischen zwei Zeichen zusätzlich berücksichtigt wird.
-- **Abstand fuer Space**
-  Breite des Leerzeichens.
-- **Maximale / Minimale / Durchschnittliche Breite der Buchstaben**
-  Statistische Werte, aus denen die Applikation zum Beispiel die Gesamtbreite von Text abschätzen kann, ohne jedes Glyph einzeln zu lesen.
-- **Anzahl Farben**
-  Anzahl der im Font verwendeten Farben, 1 bei monochromen Fonts.
-- **Bits pro Pixel bei Anti Aliased Fonts**
-  Bittiefe der Graustufen bei antialiasten Fonts (Standard: 2).
+- **Start und Ende in Character Tabelle**
+  Diese beiden Werte geben an, mit welchem Zeichen die nachfolgende Sprungtabelle beginnt und endet. Da UNICODE verwendet wird, sind die Werte 2 Byte groß und im Little-Endian-Format angegeben.
+- **Pointer auf Beginn der Sprungtabelle**
+  Ein 4 Byte Pointer im Little-Endian-Format, der den Beginn der Sprungtabelle innerhalb des FACE angibt.
 
-### Char-Tabelle
+Die Sprungtabellen selbst bestehen aus 4-Byte-Werten im Little-Endian-Format, die den Beginn des jeweiligen Glyphs innerhalb des Font-FACE angeben. Dabei wird der 12 Byte große Header und die Sprungtabelle mitgerechnet.
 
-Die Char-Tabelle hat 16 Byte pro Zeichen und ist über den Zeichenwert direkt indexierbar:
+Die Sprungtabelle enthält nur Pointer für existierende Glyphs. Ist ein Glyph nicht vorhanden, enthält der Wert in der Sprungtabelle 0.
+
+Die Position der ersten Sprungtabelle errechnet sich folgendermaßen:
 
 ```text
-Byte  0: Pointer auf Bitmap                           (4 Byte)
-Byte  4: Pointer auf Rahmen-Map                       (4 Byte)
-Byte  8: Pointer auf Shadow-Map                       (4 Byte)
-Byte 12: Breite                                       (2 Byte)
-Byte 14: Hoehe                                        (2 Byte)
+Position = 12 + Anzahl Sprungtabellen * 8
 ```
 
-#### Beschreibung:
+## Glyphs
 
-- **Pointer auf Bitmap**
-  Offset der Bitmap dieses Zeichens (0, wenn das Zeichen nicht vorkommt). Bei mehrfarbigen Fonts zeigt der Pointer auf die Bitmap der ersten Farbe.
-- **Pointer auf Rahmen-Map**
-  Offset der Bitmap der Kontur, nur bei Font-Flag "has outline" ausgewertet.
-- **Pointer auf Shadow-Map**
-  Offset der Bitmap des Schattens, nur bei Font-Flag "has shadow" ausgewertet.
-- **Breite / Hoehe**
-  Ausdehnung des Zeichens in Pixel.
-
-### Bitmaps
-
-Die Bitmaps folgen hintereinander, pro Farbe eine Bitmap. Der Anfang ist immer auf 4 Byte aligned:
+Ein Glyph besteht aus einem Header und einer Bitmap. Der Header ist folgendermaßen aufgebaut:
 
 ```text
-Byte 0: Bytes der Bitmap inkl. Header                 (2 Byte)
-Byte 2: Offset-X (signed)                             (2 Byte)
-Byte 4: Offset-Y (signed)                             (2 Byte)
-Byte 6: reserved                                      (2 Byte)
-Byte 8: Start der Bitmap
+Byte 0:  Breite                                       (2 Byte)
+Byte 2:  Höhe                                         (2 Byte)
+Byte 4:  BearingX (signed)                            (2 Byte)
+Byte 6:  BearingY (signed)                            (2 Byte)
+Byte 8:  Advance                                      (2 Byte)
+Byte 10: Bitmap                                       (x Byte)
 ```
 
-#### Beschreibung:
+### Beschreibung:
 
-- **Bytes der Bitmap inkl. Header**
-  Größe dieser Bitmap einschließlich des 8 Byte großen Headers.
-- **Offset-X (signed)**
+- **Breite**
+  Breite des Zeichens in Pixel
+- **Höhe**
+  Höhe des Zeichens in Pixel
+- **BearingX**
   Wert, der beim Zeichnen dazuaddiert werden muss, bevor die erste Spalte des Zeichens gezeichnet werden kann.
-- **Offset-Y (signed)**
+- **BearingY**
   Wert, der beim Zeichnen dazuaddiert werden muss, bevor die Zeile des Zeichens gezeichnet werden kann.
-- **reserved**
-  Nicht verwendet, jederzeit 0.
-- **Start der Bitmap**
-  Die Größe der Bitmap ist immer ein Vielfaches von 4. Bei mehrfarbigen Fonts addiert man *Bytes der Bitmap inkl. Header* zur Adresse der aktuellen Bitmap, um an den Anfang der nächsten Farbe zu gelangen.
+- **Advance**
+  Wert, der dazuaddiert werden muss, um an die Position des nächsten darzustellenden Zeichens zu kommen.
+- **Bitmap**
+  Das Format der Bitmap ergibt sich aus dem Pixelformat im FACE-Header. Die Größe errechnet sich aus *BitsProPixel \* Breite \* Höhe*, wobei auf volle Byte aufgerundet wird. Bei den Pixelformaten mit 1, 2 und 4 Bit pro Pixel werden die Bits mit dem höchstwertigen Bit (MSB) beginnend fortlaufend über das gesamte Glyph gepackt, ohne Auffüllung auf Zeilen-, Byte- oder Wortgrenzen. Wie viele Byte tatsächlich im Glyph stehen, liest ein Parser sicher nur aus dem Abstand zum nächsten Glyph (siehe [Anmerkungen zur Implementierung](#anmerkungen-zur-implementierung)).
+
+Die Position des ersten Glyphs errechnet sich folgendermaßen:
+
+```text
+Position = 12 + Anzahl Sprungtabellen * 8 + Anzahl Chars in jeder Sprungtabelle * 4
+```
+
+## Anmerkungen zur Implementierung
+
+Die folgenden Punkte sind keine Formatvorgaben, sondern beschreiben, wie PPLFontMaker die Dateien schreibt bzw. wie pplib sie liest:
+
+- Alle Zeiger (auf Sprungtabellen und auf Glyphs) sind relativ zum Beginn der FACE-Chunk-Daten zu sehen, nicht zum Dateianfang.
+- Da Unicode-Werte in den Sprungtabellen und Zeigertabellen 2 Byte groß sind, können nur Zeichen im Bereich 0 bis 65535 abgebildet werden.
+- Der undokumentierte Wert *Position Underscore* wird von PPLFontMaker aus der TrueType `underline_position` berechnet, ganzzahlig in Pixel, positiv unterhalb der Grundlinie.
+- PPLFontMaker polstert Glyphs nicht auf eine bestimmte Ausrichtung; die Glyphen folgen direkt hintereinander. Der Bitmap-Puffer wird als `(Breite * Höhe) >> 3` (1 Bit), `>> 2` (2 Bit) bzw. `>> 1` (4 Bit) plus je 1 Byte berechnet, also ein Byte größer als nötig, wenn die Bitzahl glatt in ein Byte aufgeht. Darauf darf sich ein Leser nicht verlassen, denn der nächste Offset steht in der Sprungtabelle.
+- *MaxHeight* wird als `größte Ausdehnung unter der Grundlinie + MaxBearingY + 1` ermittelt, beschreibt also die Zeilenhöhe und nicht allein die Höhe des höchsten Glyphs.
+- PPLFontMaker rendert die Konturen mit `Größe + 2` Pixeln (`SetPixelSizes`), damit Überlängen Ober- und Unterlinie nicht abschneiden. Im Feld *Size* des FACE-Headers steht die angeforderte Größe.
+- Der Font5-Renderer in pplib wählt das Face über exakte Übereinstimmung von Größe und Flag-Byte aus. Ein Face mit gesetztem Bit 1 (bold) wird nur gefunden, wenn ein fetter Font angefordert ist. Gibt es kein passendes Face, zeichnet der Renderer jedes Glyph des vorhandenen Faces zweimal, das zweite Mal mit um 1 Pixel erhöhter X-Position.
+- Das Flag-Feld des FACE-Headers enthält kein Bit für Hints. Kerning-Informationen gibt es erst ab [Version 6](font6.md).
