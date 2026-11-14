@@ -172,14 +172,33 @@ TEST_F(FontMakerTest, ErneutesErzeugenErsetztDasVorhandeneFace)
     ASSERT_EQ(faces.size(), 1u);
 }
 
-// --genbold erzeugt ein eigenes fettes Face, das normale bleibt erhalten.
+// --genbold erzeugt in jedem Pixelformat ein eigenes fettes Face, das normale
+// bleibt erhalten. Die fetten Glyphen sind einen Pixel breiter als die normalen.
 TEST_F(FontMakerTest, GeneriertesFettesFaceKommtHinzu)
 {
-    ASSERT_EQ(ausgefuehrt({"-6", "-s", "8", "--aa8"}), 0);
-    ASSERT_EQ(ausgefuehrt({"-6", "-s", "8", "--aa8", "--genbold"}), 0);
-    std::vector<std::string> probleme;
-    std::vector<fmtest::FaceInfo> faces = facesPruefen(6, probleme);
-    EXPECT_EQ(toKeys(faces), (std::set<FaceKey>{{8, 3, 1}, {8, 3, 3}}));
+    const char* formate[] = {"--mono1", "--mono8", "--aa8", "--aa2", "--aa4"};
+    for (const char* format : formate) {
+        SCOPED_TRACE(std::string("Pixelformat ") + format);
+        fmtest::deleteFile(derFont);
+        ASSERT_EQ(ausgefuehrt({"-6", "-s", "8", format}), 0) << format;
+        ASSERT_EQ(ausgefuehrt({"-6", "-s", "8", format, "--genbold"}), 0) << format;
+
+        std::vector<std::string> probleme;
+        std::vector<fmtest::FaceInfo> faces = facesPruefen(6, probleme);
+        ASSERT_EQ(faces.size(), 2u) << format;
+
+        const fmtest::FaceInfo* normal = nullptr;
+        const fmtest::FaceInfo* fett = nullptr;
+        for (const fmtest::FaceInfo& face : faces) {
+            if (face.style & 2) fett = &face;
+            else normal = &face;
+        }
+        ASSERT_TRUE(normal != nullptr) << format;
+        ASSERT_TRUE(fett != nullptr) << format;
+        EXPECT_EQ(fett->size, normal->size) << format;
+        EXPECT_EQ(fett->pixelformat, normal->pixelformat) << format;
+        EXPECT_EQ(fett->maxglyphwidth, normal->maxglyphwidth + 1) << format;
+    }
 }
 
 // -r loescht nur die Faces, die Groesse, Pixelformat und Stil treffen.

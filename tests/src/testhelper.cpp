@@ -216,6 +216,7 @@ void checkFace6(const std::vector<unsigned char>& data, FaceInfo& info, std::vec
         int code = (int) peek16(data, pos + 4);
         int width = (int) peek16(data, pos + 6);
         int height = (int) peek16(data, pos + 8);
+        if (width > info.maxglyphwidth) info.maxglyphwidth = width;
 
         size_t hintbytes = 0;
         if (info.hints) {
@@ -323,6 +324,7 @@ void checkFace5(const std::vector<unsigned char>& data, FaceInfo& info, std::vec
         }
         int width = (int) peek16(data, start);
         int height = (int) peek16(data, start + 2);
+        if (width > info.maxglyphwidth) info.maxglyphwidth = width;
         size_t needed = bitmapBytes(width, height, info.pixelformat);
         // Das Programm polstert die Bitmap um ein Byte auf, wenn die Bitanzahl
         // glatt in ein Byte aufgeht (font5.md, Hinweise zur Implementierung).

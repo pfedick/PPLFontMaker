@@ -6,8 +6,6 @@
 #include <pplib/core/functions.h>
 #include <pplib/core/pfpfile.h>
 #include <pplib/exceptions.h>
-#include <pplib/grafix/color.h>
-#include <pplib/grafix/drawable.h>
 #include <pplib/types/string.h>
 #include <pplib/types/widestring.h>
 #include "version.h"
@@ -141,7 +139,6 @@ public:
     int LoadFont(const char* file);
 
     int Render(int code, FONTRENDER* render);
-    int BltGlyph(pplib::grafix::Drawable& surface, int x, int y, FONTRENDER* glyph, pplib::grafix::Color& c);
 
     void DeleteFace(int size, int flags);
     void CopyFreeTypeName();

@@ -62,7 +62,6 @@ target_include_directories(pplfontmaker_core PRIVATE
 
 target_link_libraries(pplfontmaker_core PUBLIC
     pplib::core
-    pplib::grafix
     Freetype::Freetype)
 
 target_compile_definitions(pplfontmaker_core PUBLIC

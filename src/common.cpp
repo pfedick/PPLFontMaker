@@ -27,6 +27,42 @@ int CFontGeneratorCommon::LoadFont(const char* file)
     return 1;
 }
 
+// Erzeugt eine um ein Pixel nach rechts versetzte Kopie der Glyph-Bitmap.
+// Zusammen mit der unveraenderten Bitmap ergibt das den Fake-Fett-Effekt,
+// jeder Buchstabe wird zweimal mit einem Pixel Versatz gezeichnet.
+static char* CreateBoldSource(const uint8_t* source, int pitch, int width, int rows, bool mono, int* outPitch)
+{
+    int dilatedWidth = width + 1;
+    int outRowBytes = mono ? ((dilatedWidth + 7) / 8) : dilatedWidth;
+    if (outRowBytes <= 0 || rows <= 0) return NULL;
+    char* out = (char*)calloc((size_t)outRowBytes * rows, 1);
+    if (!out) return NULL;
+
+    for (int y = 0; y < rows; y++) {
+        const uint8_t* src = source + (size_t)y * pitch;
+        uint8_t* dst = (uint8_t*)out + (size_t)y * outRowBytes;
+        if (mono) {
+            // Die Bits einer Zeile stehen MSB-zuerst; ein Pixel nach rechts
+            // verschieben bedeutet also ein Bit nach rechts plus Uebertrag.
+            for (int b = 0; b < outRowBytes; b++) {
+                uint8_t cur = (b < pitch) ? src[b] : 0;
+                uint8_t carry = (b > 0) ? (uint8_t)(src[b - 1] << 7) : 0;
+                dst[b] = (uint8_t)(cur | (cur >> 1) | carry);
+            }
+            int padBits = outRowBytes * 8 - dilatedWidth;
+            if (padBits > 0) dst[outRowBytes - 1] &= (uint8_t)(0xff << padBits);
+        } else {
+            for (int x = 0; x < dilatedWidth; x++) {
+                uint8_t cur = (x < width) ? src[x] : 0;
+                uint8_t prev = (x > 0 && (x - 1) < width) ? src[x - 1] : 0;
+                dst[x] = (cur > prev) ? cur : prev;
+            }
+        }
+    }
+    *outPitch = outRowBytes;
+    return out;
+}
+
 int CFontGeneratorCommon::Render(int code, FONTRENDER* render)
 {
     FT_GlyphSlot slot = face->glyph;
@@ -65,10 +101,23 @@ int CFontGeneratorCommon::Render(int code, FONTRENDER* render)
     printf ("render->width: %i, ",render->width);
     printf ("render->height: %i\n",render->height);
     */
+    // Fake-Fett: Die Glyph-Bitmap vor der Umrechnung um ein Pixel nach rechts
+    // verbreitern. Dadurch laufen alle Pixelformate über denselben Code.
+    bool isMono = (slot->bitmap.pixel_mode == FT_PIXEL_MODE_MONO);
+    int srcWidth = slot->bitmap.width;
+    int srcPitch = slot->bitmap.pitch;
+    char* boldSource = NULL;
     if (render->flags & FONTFLAGS::GENERATEBOLD) {
-        render->width++;
+        boldSource = CreateBoldSource((const uint8_t*)slot->bitmap.buffer, srcPitch, srcWidth, (int)slot->bitmap.rows, isMono, &srcPitch);
+        if (!boldSource) {
+            printf("ERROR: Fehler beim Reservieren der Fett-Vorlage\n");
+            return 0;
+        }
+        srcWidth++;
         render->advance++;
     }
+    render->width = srcWidth;
+
     render->buffersize = render->width * render->height;
     if (render->flags & FONTFLAGS::MONO1)
         render->buffersize = (render->buffersize >> 3) + 1;
@@ -80,209 +129,108 @@ int CFontGeneratorCommon::Render(int code, FONTRENDER* render)
     render->buffer = (char*)malloc(render->buffersize);
     if (!render->buffer) {
         printf("ERROR: Fehler beim Reservieren von %d Bytes Speicher\n", render->buffersize);
+        free(boldSource);
         return 0;
     }
     memset(render->buffer, 0, render->buffersize);
 
-    uint8_t* glyph = (uint8_t*)slot->bitmap.buffer;
+    uint8_t* glyph = boldSource ? (uint8_t*)boldSource : (uint8_t*)slot->bitmap.buffer;
     char* zz = render->buffer;
 
-    uint8_t w1, w2;
-    int maxwidth = 0;
-    int minwidth = 999999;
+    uint8_t pixel;
+    uint8_t value;
+
     if (render->flags & FONTFLAGS::AA2) {
-        uint8_t zbits = 0;
-        uint8_t zv = 0;
-        for (int gy = 0; gy < (int)slot->bitmap.rows; gy++) {
-            for (int gx = 0; gx < (int)slot->bitmap.width; gx++) {
-                w1 = glyph[gx];
-                if (w1) {
-                    if (w1 > 200)
-                        w2 = 3;
-                    else if (w1 > 150)
-                        w2 = 2;
-                    else if (w1 > 100)
-                        w2 = 1;
-                    else
-                        w2 = 0;
-                    // w2=((w1*3)/255)&3;
-                    zv |= w2;
+        uint8_t bitcount = 0;
+        uint8_t packed = 0;
+        for (int y = 0; y < (int)slot->bitmap.rows; y++) {
+            for (int x = 0; x < srcWidth; x++) {
+                pixel = glyph[x];
+                value = 0;
+                if (pixel) {
+                    if (pixel > 200) value = 3;
+                    else if (pixel > 150) value = 2;
+                    else if (pixel > 100) value = 1;
                 }
-                // printf ("w1=%i, w2=%i, zv=%i\n",w1,w2,zv);
-                zbits += 2;
-                if (zbits == 8) {
-                    zz[0] = zv;
-                    zz++;
-                    zv = 0;
-                    zbits = 0;
-                } else {
-                    zv = (zv << 2);
+                packed = (uint8_t)((packed << 2) | value);
+                bitcount += 2;
+                if (bitcount == 8) {
+                    *zz++ = (char)packed;
+                    packed = 0;
+                    bitcount = 0;
                 }
             }
-            glyph += slot->bitmap.pitch;
+            glyph += srcPitch;
         }
-        if (zbits) {
-            zv = zv << (6 - zbits);
-            zz[0] = zv;
+        if (bitcount) {
+            packed = (uint8_t)(packed << (8 - bitcount));
+            *zz = (char)packed;
         }
-        // HexDump(render->buffer,render->buffersize);
     } else if (render->flags & FONTFLAGS::AA4) {
-        uint8_t zbits = 0;
-        uint8_t zv = 0;
-        for (int gy = 0; gy < (int)slot->bitmap.rows; gy++) {
-            for (int gx = 0; gx < (int)slot->bitmap.width; gx++) {
-                w1 = glyph[gx];
-                if (w1) {
-                    w2 = (w1 * 15 / 255) & 15;
-                    zv |= w2;
-                }
-                // printf ("w1=%i, w2=%i, zv=%i\n",w1,w2,zv);
-                zbits += 4;
-                if (zbits == 8) {
-                    zz[0] = zv;
-                    zz++;
-                    zv = 0;
-                    zbits = 0;
-                } else {
-                    zv = (zv << 4);
+        uint8_t bitcount = 0;
+        uint8_t packed = 0;
+        for (int y = 0; y < (int)slot->bitmap.rows; y++) {
+            for (int x = 0; x < srcWidth; x++) {
+                pixel = glyph[x];
+                if (pixel) value = (uint8_t)((pixel * 15 / 255) & 15);
+                else value = 0;
+                packed = (uint8_t)((packed << 4) | value);
+                bitcount += 4;
+                if (bitcount == 8) {
+                    *zz++ = (char)packed;
+                    packed = 0;
+                    bitcount = 0;
                 }
             }
-            glyph += slot->bitmap.pitch;
+            glyph += srcPitch;
         }
-        if (zbits) {
-            zv = zv << (4 - zbits);
-            zz[0] = zv;
+        if (bitcount) {
+            packed = (uint8_t)(packed << (8 - bitcount));
+            *zz = (char)packed;
         }
-        // HexDump(render->buffer,render->buffersize);
     } else if (render->flags & FONTFLAGS::ANTIALIAS) {
-        for (int gy = 0; gy < (int)slot->bitmap.rows; gy++) {
-            for (int gx = 0; gx < (int)slot->bitmap.width; gx++) {
-                w1 = glyph[gx];
-                if (render->flags & FONTFLAGS::GENERATEBOLD) {
-                    if (w1 > 31) {
-                        if ((uint8_t)zz[gx] < w1) zz[gx] = w1;
-                        zz[gx + 1] = w1;
-                    } else {
-                        zz[gx] = w1;
-                    }
-                } else {
-                    zz[gx] = w1;
-                }
-                if (w1) {
-                    if (gx < minwidth) minwidth = gx;
-                    if (gx > maxwidth) maxwidth = gx;
-                }
-            }
-            glyph += slot->bitmap.pitch;
+        for (int y = 0; y < (int)slot->bitmap.rows; y++) {
+            for (int x = 0; x < srcWidth; x++) zz[x] = (char)glyph[x];
+            glyph += srcPitch;
             zz += render->width;
-        }
-        // HexDump(render->buffer,render->buffersize);
-        if (code > 32) { // Wie breit ist das Zeichen wirklich?
-                         // render->advance=maxwidth-minwidth+2;
-                         // if (minwidth>0) render->bearingx=0-minwidth;
         }
     } else if (render->flags & FONTFLAGS::MONO8) {
-        uint8_t bitcount = 0;
-        uint8_t bytecount = 0;
-        for (int gy = 0; gy < (int)slot->bitmap.rows; gy++) {
-            for (int gx = 0; gx < (int)slot->bitmap.width; gx++) {
-                if (!bitcount) {
-                    w1 = glyph[bytecount];
-                    bitcount = 8;
-                    bytecount++;
-                }
-                if (w1 & 128) {
-                    zz[gx] = (uint8_t)255;
-                    if (render->flags & FONTFLAGS::GENERATEBOLD) {
-                        zz[gx + 1] = (uint8_t)255;
-                    }
-                    if (gx < minwidth) minwidth = gx;
-                    if (gx > maxwidth) maxwidth = gx;
-                }
-                w1 = w1 << 1;
-                bitcount--;
+        // Die Quelldateien von FreeType liegen hier 1 Bit pro Pixel vor.
+        for (int y = 0; y < (int)slot->bitmap.rows; y++) {
+            for (int x = 0; x < srcWidth; x++) {
+                if (glyph[x >> 3] & (uint8_t)(0x80 >> (x & 7))) zz[x] = (char)255;
+                else zz[x] = 0;
             }
-            glyph += slot->bitmap.pitch;
-            bitcount = 0;
-            bytecount = 0;
+            glyph += srcPitch;
             zz += render->width;
-        }
-        if (code > 32) { // Wie breit ist das Zeichen wirklich?
-                         // render->advance=maxwidth-minwidth+2;
-                         // if (minwidth>0) render->bearingx=0-minwidth;
         }
     } else if (render->flags & FONTFLAGS::MONO1) {
         uint8_t bitcount = 0;
-        uint8_t bytecount = 0;
-        uint8_t zbits = 0;
-        uint8_t zv = 0;
-        for (int gy = 0; gy < (int)slot->bitmap.rows; gy++) {
-            for (int gx = 0; gx < (int)slot->bitmap.width; gx++) {
-                if (!bitcount) {
-                    w1 = glyph[bytecount];
-                    bitcount = 8;
-                    bytecount++;
-                }
-                if (w1 & 128) {
-                    zv |= 1;
-                    if (gx < minwidth) minwidth = gx;
-                    if (gx > maxwidth) maxwidth = gx;
-                }
-                w1 = w1 << 1;
-                bitcount--;
-                zbits++;
-                if (zbits == 8) {
-                    zz[0] = zv;
-                    zz++;
-                    zv = 0;
-                    zbits = 0;
-                } else {
-                    zv = zv << 1;
+        uint8_t packed = 0;
+        for (int y = 0; y < (int)slot->bitmap.rows; y++) {
+            for (int x = 0; x < srcWidth; x++) {
+                packed = (uint8_t)(packed << 1);
+                if (glyph[x >> 3] & (uint8_t)(0x80 >> (x & 7))) packed |= 1;
+                bitcount++;
+                if (bitcount == 8) {
+                    *zz++ = (char)packed;
+                    packed = 0;
+                    bitcount = 0;
                 }
             }
-            glyph += slot->bitmap.pitch;
-            bitcount = 0;
-            bytecount = 0;
+            glyph += srcPitch;
         }
-        if (zbits) {
-            zv = zv << (7 - zbits);
-            zz[0] = zv;
-        }
-
-        if (code > 32) { // Wie breit ist das Zeichen wirklich?
-                         // render->advance=maxwidth-minwidth+2;
-                         // if (minwidth>0) render->bearingx=0-minwidth;
+        if (bitcount) {
+            packed = (uint8_t)(packed << (8 - bitcount));
+            *zz = (char)packed;
         }
     }
+
+    free(boldSource);
 
     return 1;
 }
 
-int CFontGeneratorCommon::BltGlyph(pplib::grafix::Drawable& surface, int x, int y, FONTRENDER* glyph, pplib::grafix::Color& c)
-{
-    char* buffer = glyph->buffer;
-    uint8_t w;
-    y -= glyph->bearingy;
-    x += glyph->bearingx;
-    if (glyph->flags & FONTFLAGS::ANTIALIAS) {
-        for (int yy = 0; yy < glyph->height; yy++) {
-            for (int xx = 0; xx < glyph->width; xx++) {
-                w = buffer[xx];
-                if (w) surface.blendPixel(x + xx, y + yy, c, (float)w / 255);
-            }
-            buffer += glyph->width;
-        }
-    } else {
-        for (int yy = 0; yy < glyph->height; yy++) {
-            for (int xx = 0; xx < glyph->width; xx++) {
-                w = buffer[xx];
-                if (w) surface.putPixel(x + xx, y + yy, c);
-            }
-            buffer += glyph->width;
-        }
-    }
-    return 1;
-}
 
 // Loschen alle Faces, die zu Groesse, Pixelformat und Stil der angegebenen
 // Commandline-Flags passen. Das Hints-Bit im Flag-Byte bleibt aussen vor.

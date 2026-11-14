@@ -169,14 +169,7 @@ int Main::checkFlags(int argc, char** argv)
         flags |= FONTFLAGS::MONO1;
     if (pplib::HaveArgv(argc, argv, "--isbold")) flags |= FONTFLAGS::ISBOLD;
     if (pplib::HaveArgv(argc, argv, "--isitalic")) flags |= FONTFLAGS::ISITALIC;
-    if (pplib::HaveArgv(argc, argv, "--genbold")) {
-        if ((flags & FONTFLAGS::AA2) == 0 && (flags & FONTFLAGS::AA4) == 0 && (flags & FONTFLAGS::MONO1) == 0) {
-            flags |= FONTFLAGS::GENERATEBOLD;
-        } else {
-            printf("ERROR: --genbold kann zur Zeit nicht zusammen mit --aa2, --aa4 oder --mono\nverwendet werden.\n");
-            return 0;
-        }
-    }
+    if (pplib::HaveArgv(argc, argv, "--genbold")) flags |= FONTFLAGS::GENERATEBOLD;
     return 1;
 }
 

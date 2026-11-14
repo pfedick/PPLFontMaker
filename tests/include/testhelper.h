@@ -25,6 +25,7 @@ struct FaceInfo {
     int underline = 0;
     int jumptables = 0; // Font5: Anzahl Sprungtabellen, Font6: Flagbyte 15
     int glyphcount = 0;  // Font6: Anzahl Glyphs laut Header
+    int maxglyphwidth = 0; // Breite der breitesten Glyph-Bitmap
 };
 
 // Vollstaendiger Pfad zu einer Datei in tests/testdata

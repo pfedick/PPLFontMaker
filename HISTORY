@@ -9,11 +9,19 @@ Version 1.6.0 vom 14.11.2026
     "--genbold" ersetzt statt zusaetzlich abgelegt
   - "--aa" entfernt; es gibt nur noch --aa2, --aa4, --aa8, --mono1 und
     --mono8, die jetzt auch gegeneinander geprueft werden
+  - "--genbold" ist wieder in allen Pixelformaten moeglich: die Bitmap wird vor
+    dem Schreiben um eine PixelSpalte nach rechts verbreitert, statt den Glyphen
+    in zwei Durchgaengen zu zeichnen (das ging nur bei --aa8 und --mono8)
   - font5.md beschreibt das tatsaechlich vom Generator geschriebene Format
   - Makefile als CMake-Wrapper (release, debug, asan, test, coverage)
   - Unittests (GoogleTest) ergaenzen, die die erzeugten Font-Dateien von aussen
     ueber das Binary pruefen (PFP-Container, FACE-Aufbau, Font5-Sprungtabellen,
     Geloeschen/Ersetzen von Faces, Fehlermeldungen)
+  - Nicht mehr genutzte Funktion BltGlyph() entfernt; PPLFontMaker haengt damit
+    nicht mehr von pplib::grafix ab
+  - Interne Funktions- und Variablennamen ins Englische geaendert
+  - Bitreihenfolge im letzten Byte von 2-Bit- und 4-Bit-Bitmaps korrigiert: die
+    letzten Pixel wurden an die falsche Stelle des Bytes geschrieben
   - Heap-Buffer-Overflow behoben: Beim Kopieren eines Font5-Glyphs wurde die
     Bitmap einen 10 Byte zu gross kopiert, weil "size" den Glyph-Header mitzaehlt
   - memcpy() mit NULL-Zeiger und Groesse 0 beim Schreiben leerer Bitmaps
