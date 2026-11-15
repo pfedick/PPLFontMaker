@@ -30,7 +30,7 @@ if(PPLFONTMAKER_ENABLE_COVERAGE AND NOT WIN32)
 endif()
 
 # Unittests (GoogleTest, siehe tests/)
-option(PPLFONTMAKER_BUILD_TESTS "Unittests bauen" ON)
+option(PPLFONTMAKER_BUILD_TESTS "Unittests bauen" OFF)
 
 # Versions-Header in den Buildverzeichnis erzeugen
 string(TIMESTAMP FM_BUILDDATE_INT "%Y%m%d" UTC)

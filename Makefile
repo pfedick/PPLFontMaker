@@ -65,19 +65,19 @@ all: release debug
 
 release:
 	$(CMAKE) -S . -B $(BUILD_RELEASE) $(GEN_FLAG) -DCMAKE_BUILD_TYPE=Release
-	$(CMAKE) --build $(BUILD_RELEASE) -j $(JOBS)
+	$(CMAKE) --build $(BUILD_RELEASE) -j $(JOBS) --verbose
 	-ln -sf $(BUILD_RELEASE)/compile_commands.json compile_commands.json
 	cp $(APP_RELEASE) .
 
 debug:
 	$(CMAKE) -S . -B $(BUILD_DEBUG) $(GEN_FLAG) -DCMAKE_BUILD_TYPE=Debug
-	$(CMAKE) --build $(BUILD_DEBUG) -j $(JOBS)
+	$(CMAKE) --build $(BUILD_DEBUG) -j $(JOBS) --verbose
 	-ln -sf $(BUILD_DEBUG)/compile_commands.json compile_commands.json
 	cp $(APP_DEBUG) .
 
 build_asan:
 	$(CMAKE) -S . -B $(BUILD_ASAN) $(GEN_FLAG) -DCMAKE_BUILD_TYPE=Debug -DPPLFONTMAKER_SANITIZER=$(ASAN_SANITIZERS)
-	$(CMAKE) --build $(BUILD_ASAN) -j $(JOBS)
+	$(CMAKE) --build $(BUILD_ASAN) -j $(JOBS) --verbose
 
 # Build starten und die Ausgabe des Programms mitgeschnitten. Die
 # Sanitizer-Meldungen stehen im Log, am Ende eine Zusammenfassung.
@@ -106,7 +106,7 @@ run-debug: debug
 
 build_tests:
 	$(CMAKE) -S . -B $(BUILD_DEBUG) $(GEN_FLAG) -DCMAKE_BUILD_TYPE=Debug -DPPLFONTMAKER_BUILD_TESTS=ON
-	$(CMAKE) --build $(BUILD_DEBUG) -j $(JOBS) --target test_all
+	$(CMAKE) --build $(BUILD_DEBUG) -j $(JOBS) --verbose --target test_all
 
 # Die Tests arbeiten mit Dateien in tests/tmp, deshalb von tests/ aus starten.
 test: build_tests
@@ -114,7 +114,7 @@ test: build_tests
 
 coverage:
 	$(CMAKE) -S . -B $(BUILD_COVERAGE) $(GEN_FLAG) -DCMAKE_BUILD_TYPE=Debug -DPPLFONTMAKER_BUILD_TESTS=ON -DPPLFONTMAKER_ENABLE_COVERAGE=ON
-	$(CMAKE) --build $(BUILD_COVERAGE) -j $(JOBS) --target test_all
+	$(CMAKE) --build $(BUILD_COVERAGE) -j $(JOBS) --verbose --target test_all
 	-ln -sf $(BUILD_COVERAGE)/compile_commands.json compile_commands.json
 	cd tests && ../$(BUILD_COVERAGE)/tests/test_all$(EXE) --gtest_color=yes $(TEST_ARGS)
 	mkdir -p coverage_html

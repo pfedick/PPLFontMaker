@@ -14,11 +14,14 @@
 #include <cstdlib>
 #include <fstream>
 #include <stdexcept>
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 
 #include <filesystem>
 
-namespace fmtest {
+namespace fmtest
+{
 
 std::string testDataPath(const std::string& name)
 {
@@ -93,7 +96,7 @@ unsigned int peek32(const std::vector<unsigned char>& data, size_t pos)
     if (pos + 4 > data.size()) {
         throw std::runtime_error("Leseposition ausserhalb des Chunks");
     }
-    return data[pos] | (data[pos + 1] << 8) | (data[pos + 2] << 16) | ((unsigned int) data[pos + 3] << 24);
+    return data[pos] | (data[pos + 1] << 8) | (data[pos + 2] << 16) | ((unsigned int)data[pos + 3] << 24);
 }
 
 bool parsePfpFile(const std::vector<unsigned char>& raw, PfpHeader& header, std::vector<PfpChunk>& chunks, std::string& reason)
@@ -124,7 +127,7 @@ bool parsePfpFile(const std::vector<unsigned char>& raw, PfpHeader& header, std:
     }
 
     header.formatVersion = raw[8];
-    header.fileID.assign((const char*) &raw[10], 4);
+    header.fileID.assign((const char*)&raw[10], 4);
     header.minorVersion = raw[14];
     header.majorVersion = raw[15];
     header.compression = raw[16];
@@ -133,7 +136,7 @@ bool parsePfpFile(const std::vector<unsigned char>& raw, PfpHeader& header, std:
     bool endfound = false;
     while (pos + 8 <= raw.size()) {
         PfpChunk chunk;
-        chunk.name.assign((const char*) &raw[pos], 4);
+        chunk.name.assign((const char*)&raw[pos], 4);
         unsigned int size = peek32(raw, pos + 4);
         if (chunk.name == "ENDF") {
             if (size != 0) {
@@ -159,22 +162,22 @@ bool parsePfpFile(const std::vector<unsigned char>& raw, PfpHeader& header, std:
     return true;
 }
 
-
-namespace {
+namespace
+{
 
 // Anzahl Bits pro Pixel laut Pixelformat des FACE-Headers
 int bitsPerPixel(int pixelformat)
 {
     switch (pixelformat) {
-        case 1:  // Monochrom, 8 Bit
-        case 3:  // Antialiasing, 8 Bit
-            return 8;
-        case 2:  // Monochrom, 1 Bit
-            return 1;
-        case 4:  // Antialiasing, 2 Bit
-            return 2;
-        case 5:  // Antialiasing, 4 Bit
-            return 4;
+    case 1: // Monochrom, 8 Bit
+    case 3: // Antialiasing, 8 Bit
+        return 8;
+    case 2: // Monochrom, 1 Bit
+        return 1;
+    case 4: // Antialiasing, 2 Bit
+        return 2;
+    case 5: // Antialiasing, 4 Bit
+        return 4;
     }
     return 0;
 }
@@ -185,7 +188,7 @@ size_t bitmapBytes(int width, int height, int pixelformat)
     if (bits == 0 || width <= 0 || height <= 0) {
         return 0;
     }
-    return ((size_t) width * (size_t) height * (size_t) bits + 7) / 8;
+    return ((size_t)width * (size_t)height * (size_t)bits + 7) / 8;
 }
 
 std::string faceTag(const FaceInfo& info)
@@ -213,9 +216,9 @@ void checkFace6(const std::vector<unsigned char>& data, FaceInfo& info, std::vec
             problems.push_back(tag + ": Glyph-Block an Position " + std::to_string(pos) + " hat eine ungueltige Groesse");
             return;
         }
-        int code = (int) peek16(data, pos + 4);
-        int width = (int) peek16(data, pos + 6);
-        int height = (int) peek16(data, pos + 8);
+        int code = (int)peek16(data, pos + 4);
+        int width = (int)peek16(data, pos + 6);
+        int height = (int)peek16(data, pos + 8);
         if (width > info.maxglyphwidth) info.maxglyphwidth = width;
 
         size_t hintbytes = 0;
@@ -234,7 +237,8 @@ void checkFace6(const std::vector<unsigned char>& data, FaceInfo& info, std::vec
         size_t needed = bitmapBytes(width, height, info.pixelformat);
         size_t available = blocksize - 16 - hintbytes;
         if (width > 0 && height > 0 && (available < needed || available > needed + 1)) {
-            problems.push_back(tag + ": Bitmap von Zeichen " + std::to_string(code) + " ist " + std::to_string(available) + " Byte, erwartet " + std::to_string(needed));
+            problems.push_back(tag + ": Bitmap von Zeichen " + std::to_string(code) + " ist " + std::to_string(available) +
+                               " Byte, erwartet " + std::to_string(needed));
         }
         if (code <= previous) {
             problems.push_back(tag + ": Zeichen " + std::to_string(code) + " steht nicht in aufsteigender Reihenfolge");
@@ -256,7 +260,7 @@ void checkFace6(const std::vector<unsigned char>& data, FaceInfo& info, std::vec
 void checkFace5(const std::vector<unsigned char>& data, FaceInfo& info, std::vector<std::string>& problems)
 {
     std::string tag = faceTag(info);
-    size_t numTables = (size_t) info.jumptables;
+    size_t numTables = (size_t)info.jumptables;
     if (numTables == 0) {
         problems.push_back(tag + ": Face enthaelt keine Sprungtabelle");
         return;
@@ -271,15 +275,16 @@ void checkFace5(const std::vector<unsigned char>& data, FaceInfo& info, std::vec
     size_t expectedTable = tableStart + numTables * 8;
     for (size_t i = 0; i < numTables; i++) {
         size_t entry = tableStart + i * 8;
-        int start = (int) peek16(data, entry);
-        int end = (int) peek16(data, entry + 2);
+        int start = (int)peek16(data, entry);
+        int end = (int)peek16(data, entry + 2);
         unsigned int offset = peek32(data, entry + 4);
         if (end < start) {
             problems.push_back(tag + ": Sprungtabelle " + std::to_string(i) + " endet vor ihrem Anfang");
             return;
         }
         if (offset != expectedTable) {
-            problems.push_back(tag + ": Sprungtabelle " + std::to_string(i) + " zeigt auf " + std::to_string(offset) + ", erwartet " + std::to_string(expectedTable));
+            problems.push_back(tag + ": Sprungtabelle " + std::to_string(i) + " zeigt auf " + std::to_string(offset) + ", erwartet " +
+                               std::to_string(expectedTable));
             return;
         }
         expectedTable += (size_t)(end - start + 1) * 4;
@@ -299,7 +304,7 @@ void checkFace5(const std::vector<unsigned char>& data, FaceInfo& info, std::vec
     for (size_t i = 0; i < codes; i++) {
         unsigned int pointer = peek32(data, tableStart + numTables * 8 + i * 4);
         if (pointer != 0) {
-            anfange.push_back((size_t) pointer);
+            anfange.push_back((size_t)pointer);
         }
     }
 
@@ -308,7 +313,8 @@ void checkFace5(const std::vector<unsigned char>& data, FaceInfo& info, std::vec
         return;
     }
     if (anfange.front() != glyphsStart) {
-        problems.push_back(tag + ": erstes Glyph beginnt auf " + std::to_string(anfange.front()) + ", erwartet " + std::to_string(glyphsStart));
+        problems.push_back(tag + ": erstes Glyph beginnt auf " + std::to_string(anfange.front()) + ", erwartet " +
+                           std::to_string(glyphsStart));
     }
 
     for (size_t i = 0; i < anfange.size(); i++) {
@@ -322,20 +328,21 @@ void checkFace5(const std::vector<unsigned char>& data, FaceInfo& info, std::vec
             problems.push_back(tag + ": Glyph-Zeiger an Position " + std::to_string(start) + " ist nicht aufsteigend");
             return;
         }
-        int width = (int) peek16(data, start);
-        int height = (int) peek16(data, start + 2);
+        int width = (int)peek16(data, start);
+        int height = (int)peek16(data, start + 2);
         if (width > info.maxglyphwidth) info.maxglyphwidth = width;
         size_t needed = bitmapBytes(width, height, info.pixelformat);
         // Das Programm polstert die Bitmap um ein Byte auf, wenn die Bitanzahl
         // glatt in ein Byte aufgeht (font5.md, Hinweise zur Implementierung).
         size_t available = ende - start - 10;
         if (width > 0 && height > 0 && (available < needed || available > needed + 1)) {
-            problems.push_back(tag + ": Bitmap an Position " + std::to_string(start) + " ist " + std::to_string(available) + " Byte, erwartet " + std::to_string(needed));
+            problems.push_back(tag + ": Bitmap an Position " + std::to_string(start) + " ist " + std::to_string(available) +
+                               " Byte, erwartet " + std::to_string(needed));
         }
     }
 }
 
-}  // namespace
+} // namespace
 
 int checkFaces(const std::vector<PfpChunk>& chunks, int majorVersion, std::vector<FaceInfo>& faces, std::vector<std::string>& problems)
 {
@@ -357,12 +364,12 @@ int checkFaces(const std::vector<PfpChunk>& chunks, int majorVersion, std::vecto
         info.style = flags & 7;
         info.hints = (majorVersion == 6 && (flags & 8) != 0) ? 1 : 0;
         info.pixelformat = data[1];
-        info.size = (int) peek16(data, 2);
-        info.maxbearingy = (int) peek16(data, 4);
-        info.maxheight = (signed short) peek16(data, 6);
-        info.underline = (signed short) peek16(data, 8);
-        info.jumptables = (majorVersion == 5) ? (int) peek16(data, 10) : 0;
-        info.glyphcount = (majorVersion == 6) ? (int) peek16(data, 10) : -1;
+        info.size = (int)peek16(data, 2);
+        info.maxbearingy = (int)peek16(data, 4);
+        info.maxheight = (signed short)peek16(data, 6);
+        info.underline = (signed short)peek16(data, 8);
+        info.jumptables = (majorVersion == 5) ? (int)peek16(data, 10) : 0;
+        info.glyphcount = (majorVersion == 6) ? (int)peek16(data, 10) : -1;
 
         std::string tag = faceTag(info);
         if (bitsPerPixel(info.pixelformat) == 0) {
@@ -392,7 +399,7 @@ int checkFaces(const std::vector<PfpChunk>& chunks, int majorVersion, std::vecto
         faces.push_back(info);
     }
 
-    return (int) faces.size();
+    return (int)faces.size();
 }
 
 const PfpChunk* findChunk(const std::vector<PfpChunk>& chunks, const std::string& name)
