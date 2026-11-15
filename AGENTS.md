@@ -12,14 +12,19 @@ Font Format Version 6: `font6.md`
 Font Format Version 5: `font5.md`
 PFP-File-Format Version 3: `pfpfile_v3.md`
 
+# Entwicklungsumgebung
+- Unix-ähnliche Umgebung:
+  - MINGW64 / MSys auf Windows 11 mit Bash-Shell
+  - Fedora 43 Linux
+- C++20 Standard
 
-## Migration
-- Umstellung von ppl7 auf pplib8.
-- Umstellung von Autoconf auf CMake
+## Projekt-Struktur
+CMake
+- src: Quellcode
+- include: Header-Dateien
+- tests: Unittests auf Basis von Google Test
 
-
-
-## Migration auf pplib8
+## pplib8
 Das Projekt "pplib8", ist eine plattformübergreifende C++-Bibliothek, die auf verschiedenen Plattformen (Windows MingW64/MSys, Linux, FreeBSD) getestet wird und sowohl auf Desktop- als auch in Teilen auf Mikrocontroller-Umgebungen läuft. Die Bibliothek bietet eine Vielzahl von Funktionen und Abstraktionen, um gängige Programmieraufgaben zu vereinfachen. Sie deckt Datei- und Verzeichnisoperationen, Strings und Arrays, Zeit, Mathematik, Threads, Grafik, Sound, Datenbankzugriff und Internetkommunikation ab.
 
 pplib8 ist die neuere Version von ppl7. Sie verwendet CMake als Build-System und ist im Homeverzeichnis des Benutzers installiert.
